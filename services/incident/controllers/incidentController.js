@@ -1,30 +1,32 @@
 const Incident = require("../models/Incident");
+const User = require("../models/User");
 
 
 const createIncident = async (req, res) => {
-  try {
-    const { title, description, severity } = req.body;
+  const { title, description, severity } = req.body;
+  const user = req.user; // ✅ this is set by verifyToken
 
-    const newIncident = new Incident({
+  try {
+    const incident = new Incident({
       title,
       description,
       severity,
-      createdBy: req.user.userId,
-      createdByEmail: req.user.email,
+      createdBy: user.id,           // ✅ userId was not defined — use req.user.id
+      createdByEmail: user.email,   // ✅ optional
     });
 
-    await newIncident.save();
-    res.status(201).json(newIncident);
-  } catch (error) {
-    console.error("Error creating incident:", error);
-    res.status(500).json({ message: "Server error" });
+    await incident.save();
+    res.status(201).json(incident);
+  } catch (err) {
+    console.error("Error creating incident:", err);
+    res.status(500).json({ message: "Error creating incident" });
   }
 };
 
 
 const getAllIncidents = async (req, res) => {
   try {
-    const incidents = await Incident.find().populate("createdBy", "email");
+    const incidents = await Incident.find().populate("createdBy", "email").populate("assignedTo", "email");
 
     const enriched = incidents.map((incident) => {
       const email = incident.createdBy?.email || incident.createdByEmail || "N/A";
