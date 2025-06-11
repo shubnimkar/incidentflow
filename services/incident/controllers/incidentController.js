@@ -21,12 +21,13 @@ const createIncident = async (req, res) => {
 
 const getAllIncidents = async (req, res) => {
   try {
-    const incidents = await Incident.find().populate("createdBy assignedTo", "name email");
+    const incidents = await Incident.find(); // ⛔️ no populate
     res.json(incidents);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 const updateIncidentStatus = async (req, res) => {
   const { id } = req.params;
