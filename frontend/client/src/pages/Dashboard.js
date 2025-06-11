@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import {incidentApi} from "../services/api";
+import { incidentApi } from "../services/api";
+import { Link } from "react-router-dom"; // ✅ Add this for navigation
 
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
@@ -22,6 +23,14 @@ function Dashboard() {
   return (
     <div style={{ padding: "2rem" }}>
       <h2>Incident Dashboard</h2>
+
+      {/* ✅ Add this button to link to Create Incident */}
+      <div style={{ marginBottom: "1rem" }}>
+        <Link to="/create">
+          <button>+ Create New Incident</button>
+        </Link>
+      </div>
+
       {error && <p style={{ color: "red" }}>{error}</p>}
       {incidents.length === 0 && !error && <p>No incidents found.</p>}
 
