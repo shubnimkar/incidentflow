@@ -2,27 +2,25 @@ const Incident = require("../models/Incident");
 
 
 const createIncident = async (req, res) => {
-  const { title, description, severity } = req.body;
-  const userId = req.user.id; // From token
-  const userEmail = req.user.email; // assuming this is included in the token
-
-
   try {
-    const incident = new Incident({
+    const { title, description, severity } = req.body;
+
+    const newIncident = new Incident({
       title,
       description,
       severity,
-      createdBy: userId,
-      createdByEmail: userEmail
-
+      createdBy: req.user.userId,
+      createdByEmail: req.user.email,
     });
 
-    await incident.save();
-    res.status(201).json(incident);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    await newIncident.save();
+    res.status(201).json(newIncident);
+  } catch (error) {
+    console.error("Error creating incident:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
 
 const getAllIncidents = async (req, res) => {
   try {
