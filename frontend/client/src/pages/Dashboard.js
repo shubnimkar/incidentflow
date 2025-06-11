@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../services/api";
+import {incidentApi} from "../services/api";
 
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
@@ -8,7 +8,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchIncidents = async () => {
       try {
-        const res = await api.get("http://localhost:5001/api/incidents");
+        const res = await incidentApi.get("/incidents");
         setIncidents(res.data);
       } catch (err) {
         setError("Failed to fetch incidents. Are you logged in?");

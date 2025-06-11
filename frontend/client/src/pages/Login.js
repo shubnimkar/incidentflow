@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import api from "../services/api"; // ✅ Use shared axios instance
+import {authApi} from "../services/api"; // ✅ Use shared axios instance
 import { useNavigate } from "react-router-dom";
 
 function Login() {
@@ -13,7 +13,7 @@ function Login() {
     setError("");
 
     try {
-      const res = await api.post("/auth/login", {
+      const res = await authApi.post("/auth/login", {
         email,
         password,
       });
