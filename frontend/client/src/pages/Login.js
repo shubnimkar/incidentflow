@@ -13,7 +13,7 @@ function Login() {
     setError("");
 
     try {
-      const res = await authApi.post("/auth/login", {
+      const res = await authApi.post("/login", {
         email,
         password,
       });
