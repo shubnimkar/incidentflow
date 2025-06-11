@@ -6,7 +6,10 @@ const cors = require("cors");
 dotenv.config();
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:3000", // React app origin
+  credentials: true,              // allows cookies/authorization headers
+}));
 app.use(express.json());
 
 app.use("/api/incidents", require("./routes/incidentRoutes"));
