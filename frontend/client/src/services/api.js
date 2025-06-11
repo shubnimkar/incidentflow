@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Auth API (on port 5000)
 export const authApi = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: "http://localhost:5000/api/auth",
 });
 
 const incidentApi = axios.create({
