@@ -34,19 +34,23 @@ function Dashboard() {
     fetchUsers();
   }, []);
 
-  const handleAssign = async (incidentId, userId) => {
-    try {
-      await incidentApi.patch(`/incidents/${incidentId}/assign`, { userId });
-      alert("Incident assigned successfully!");
+const handleAssign = async (incidentId, userId) => {
+  try {
+    await incidentApi.patch(`/incidents/${incidentId}/assign`, {
+      assignedTo: userId,
+    });
 
-      // Refresh incident list
-      const res = await incidentApi.get("/incidents");
-      setIncidents(res.data);
-    } catch (err) {
-      console.error("Failed to assign incident", err);
-      alert("Failed to assign incident");
-    }
-  };
+    alert("Incident assigned successfully!");
+
+    // Refresh incident list
+    const res = await incidentApi.get("/incidents");
+    setIncidents(res.data);
+  } catch (err) {
+    console.error("Failed to assign incident", err);
+    alert("Failed to assign incident");
+  }
+};
+
 
   return (
     <div style={{ padding: "2rem" }}>
