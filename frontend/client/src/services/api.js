@@ -10,9 +10,9 @@ export const incidentApi = axios.create({
   baseURL: "http://localhost:5001/api",
 });
 
-// User API (http://localhost:5000/api/users)
+// User API (http://localhost:5002/api/users)
 export const userApi = axios.create({
-  baseURL: "http://localhost:5000/api/users",
+  baseURL: "http://localhost:5002/api/users",
 });
 
 // Attach token for protected APIs (incident, user)

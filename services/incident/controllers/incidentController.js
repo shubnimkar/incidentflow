@@ -60,22 +60,23 @@ const updateIncidentStatus = async (req, res) => {
   }
 };
 
-// PATCH /api/incidents/:id/assign
 const assignIncident = async (req, res) => {
   const { id } = req.params;
-  const { userId } = req.body;
+  const { assignedTo } = req.body;
 
   try {
-    const incident = await Incident.findById(id);
-    if (!incident) return res.status(404).json({ message: "Incident not found" });
+    const user = await User.findById(assignedTo);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    incident.assignedTo = userId;
-    await incident.save();
+    const incident = await Incident.findByIdAndUpdate(
+      id,
+      { assignedTo },
+      { new: true }
+    ).populate("assignedTo", "email");
 
-    res.json({ message: "Incident assigned successfully", incident });
+    res.status(200).json(incident);
   } catch (err) {
-    console.error("Error assigning incident:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
   }
 };
 
