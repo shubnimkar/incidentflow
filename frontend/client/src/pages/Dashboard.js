@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { incidentApi, userApi } from "../services/api";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchIncidents = async () => {
@@ -34,27 +35,33 @@ function Dashboard() {
     fetchUsers();
   }, []);
 
-const handleAssign = async (incidentId, userId) => {
-  try {
-    await incidentApi.patch(`/incidents/${incidentId}/assign`, {
-      assignedTo: userId,
-    });
+  const handleAssign = async (incidentId, userId) => {
+    try {
+      await incidentApi.patch(`/incidents/${incidentId}/assign`, {
+        assignedTo: userId,
+      });
 
-    alert("Incident assigned successfully!");
+      alert("Incident assigned successfully!");
 
-    // Refresh incident list
-    const res = await incidentApi.get("/incidents");
-    setIncidents(res.data);
-  } catch (err) {
-    console.error("Failed to assign incident", err);
-    alert("Failed to assign incident");
-  }
-};
+      const res = await incidentApi.get("/incidents");
+      setIncidents(res.data);
+    } catch (err) {
+      console.error("Failed to assign incident", err);
+      alert("Failed to assign incident");
+    }
+  };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
+  };
 
   return (
     <div style={{ padding: "2rem" }}>
-      <h2>Incident Dashboard</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>Incident Dashboard</h2>
+        <button onClick={handleLogout} style={{ padding: "0.5rem 1rem" }}>Logout</button>
+      </div>
 
       <div style={{ marginBottom: "1rem" }}>
         <Link to="/create">
