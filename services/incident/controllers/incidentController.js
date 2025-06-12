@@ -26,7 +26,7 @@ const createIncident = async (req, res) => {
 
 const getAllIncidents = async (req, res) => {
   try {
-    const incidents = await Incident.find().populate("createdBy", "email").populate("assignedTo", "email");
+    const incidents = await Incident.find().populate("createdBy", "email").populate("assignedTo", "email").populate("comments.user", "email");
 
     const enriched = incidents.map((incident) => {
       const email = incident.createdBy?.email || incident.createdByEmail || "N/A";
@@ -97,4 +97,50 @@ updateIncident = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident };
+const addComment = async (req, res) => {
+  try {
+    const incidentId = req.params.id;
+    const { message } = req.body; // ✅ Change this
+    const userId = req.user.id;
+
+    if (!message || message.trim() === "") {
+      return res.status(400).json({ error: "Comment is required" });
+    }
+
+    const incident = await Incident.findById(incidentId);
+    if (!incident) {
+      return res.status(404).json({ error: "Incident not found" });
+    }
+
+    incident.comments.push({ user: userId, message }); // ✅ Change this
+    await incident.save();
+
+    const updatedIncident = await Incident.findById(incidentId)
+      .populate("createdBy", "email")
+      .populate("assignedTo", "email")
+      .populate("comments.user", "email");
+
+    res.status(201).json(updatedIncident);
+  } catch (err) {
+    console.error("Error adding comment:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+const getIncidentById = async (req, res) => {
+  try {
+    const incident = await Incident.findById(req.params.id)
+      .populate("createdBy", "email")
+      .populate("assignedTo", "email")
+      .populate("comments.user", "email role");
+
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+
+    res.json(incident);
+  } catch (err) {
+    console.error("Error fetching incident:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment,getIncidentById };

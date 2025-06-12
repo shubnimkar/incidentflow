@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateIncident from './pages/CreateIncident';
 import Signup from "./pages/Signup";
+import IncidentDetails from './pages/IncidentDetails';
 
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/create" element={<CreateIncident />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/incidents/:id" element={<IncidentDetails />} />
       </Routes>
     </Router>
   );
