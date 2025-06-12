@@ -56,6 +56,24 @@ function Dashboard() {
     navigate("/");
   };
 
+const handleStatusChange = async (incidentId, newStatus) => {
+  try {
+    await incidentApi.patch(`/incidents/${incidentId}`, {
+      status: newStatus,
+    });
+
+    alert("Incident status updated successfully!"); // ✅ Popup added here
+
+    // Refresh incidents
+    const res = await incidentApi.get("/incidents");
+    setIncidents(res.data);
+  } catch (err) {
+    console.error("Failed to update status", err);
+    alert("Error updating status");
+  }
+};
+
+
   return (
     <div style={{ padding: "2rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -83,9 +101,20 @@ function Dashboard() {
             }}
           >
             <strong>{incident.title}</strong> <br />
-            <small>
-              Status: {incident.status} | Severity: {incident.severity}
-            </small>
+            <div>
+              <label>Status: </label>
+              <select
+                value={incident.status}
+                onChange={(e) => handleStatusChange(incident._id, e.target.value)}
+              >
+                <option value="open">Open</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+              <span> | Severity: {incident.severity}</span>
+          </div>
+
+
             <br />
             <small>Created by: {incident.createdBy?.email || "N/A"}</small>
             <br />

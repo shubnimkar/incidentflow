@@ -80,5 +80,21 @@ const assignIncident = async (req, res) => {
   }
 };
 
+updateIncident = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident };
+    const updatedIncident = await Incident.findByIdAndUpdate(id, updates, { new: true }).populate("createdBy assignedTo", "email");
+
+    if (!updatedIncident) {
+      return res.status(404).json({ message: "Incident not found" });
+    }
+
+    res.json(updatedIncident);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident };
