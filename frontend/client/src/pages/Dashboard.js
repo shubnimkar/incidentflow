@@ -2,6 +2,11 @@ import React, { useEffect, useState } from "react";
 import { incidentApi, userApi } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 
+const token = localStorage.getItem("token");
+const decodedToken = token ? JSON.parse(atob(token.split('.')[1])) : null;
+const isAdmin = decodedToken?.role === "admin";
+
+
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [users, setUsers] = useState([]);
@@ -86,6 +91,17 @@ const handleStatusChange = async (incidentId, newStatus) => {
           <button>+ Create New Incident</button>
         </Link>
       </div>
+
+      {isAdmin && (
+        <div style={{ marginBottom: "1rem" }}>
+          <Link to="/admin">
+            <button style={{ backgroundColor: "#e0e0e0", color: "black" }}>
+              🔧 Admin Panel
+            </button>
+          </Link>
+        </div>
+      )}
+
 
       {error && <p style={{ color: "red" }}>{error}</p>}
       {incidents.length === 0 && !error && <p>No incidents found.</p>}

@@ -5,6 +5,10 @@ import Dashboard from './pages/Dashboard';
 import CreateIncident from './pages/CreateIncident';
 import Signup from "./pages/Signup";
 import IncidentDetails from './pages/IncidentDetails';
+import AdminPanel from "./pages/AdminPanel";
+import { getCurrentUser } from './utils/auth';
+import NotAuthorized from './pages/NotAuthorized';
+
 
 
 function App() {
@@ -16,6 +20,17 @@ function App() {
         <Route path="/create" element={<CreateIncident />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/incidents/:id" element={<IncidentDetails />} />
+        <Route path="/admin" element={<AdminPanel />} />
+        <Route
+                path="/admin"
+                element={
+                  getCurrentUser()?.role === "admin" ? (
+                    <AdminPanel />
+                  ) : (
+                    <NotAuthorized />
+                  )
+                }
+              />
       </Routes>
     </Router>
   );
