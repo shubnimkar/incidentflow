@@ -2,7 +2,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-const JWT_SECRET = "your_jwt_secret"; // use env vars in production
+const JWT_SECRET = process.env.JWT_SECRET; // use env vars in production
 
 exports.register = async (req, res) => {
   try {
@@ -18,11 +18,20 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
-  if (!user || !(await user.comparePassword(password))) {
+
+  if (!user) {
+    console.log("User not found");
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
-  const token = jwt.sign({ userId: user._id, email }, JWT_SECRET, {
+  const isMatch = await user.comparePassword(password);
+  console.log("Password match:", isMatch);
+
+  if (!isMatch) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: "1d",
   });
 
