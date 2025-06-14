@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 require("dotenv").config();
 
+
 require("./models/User"); // 👈 register the User model
 
 dotenv.config();
