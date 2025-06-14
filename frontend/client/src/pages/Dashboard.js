@@ -8,11 +8,18 @@ const token = localStorage.getItem("token");
 const decodedToken = token ? JSON.parse(atob(token.split(".")[1])) : null;
 const isAdmin = decodedToken?.role === "admin";
 
+
+
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [severityFilter, setSeverityFilter] = useState("");
+  const [assignedUserFilter, setAssignedUserFilter] = useState("");
+
 
   // Fetch incidents
   useEffect(() => {
@@ -63,15 +70,29 @@ function Dashboard() {
   };
 
   // Group incidents by status
-  const groupedIncidents = {
-    open: [],
-    in_progress: [],
-    resolved: [],
-  };
+  const filteredIncidents = incidents.filter((incident) => {
+  const matchesTitle = incident.title.toLowerCase().includes(searchTerm.toLowerCase());
+  const matchesStatus = statusFilter ? incident.status === statusFilter : true;
+  const matchesSeverity = severityFilter
+    ? incident.severity?.toLowerCase() === severityFilter
+    : true;
+  const matchesAssignedUser = assignedUserFilter
+    ? incident.assignedTo?._id === assignedUserFilter
+    : true;
 
-  incidents.forEach((i) => {
-    groupedIncidents[i.status]?.push(i);
-  });
+  return matchesTitle && matchesStatus && matchesSeverity && matchesAssignedUser;
+});
+
+const groupedIncidents = {
+  open: [],
+  in_progress: [],
+  resolved: [],
+};
+
+filteredIncidents.forEach((i) => {
+  groupedIncidents[i.status]?.push(i);
+});
+
 
   // Handle drag and drop
   const onDragEnd = async (result) => {
@@ -102,7 +123,7 @@ function Dashboard() {
     switch (severity.toLowerCase()) {
       case "critical": return "#d32f2f";
       case "high": return "#f57c00";
-      case "medium": return "#fbc02d";
+      case "moderate": return "#fbc02d";
       case "low": return "#388e3c";
       default: return "#9e9e9e";
     }
@@ -132,6 +153,41 @@ function Dashboard() {
       )}
 
       {error && <p style={{ color: "red" }}>{error}</p>}
+
+
+      <div style={{ display: "flex", gap: "1rem", marginTop: "1rem", flexWrap: "wrap" }}>
+  <input
+    type="text"
+    placeholder="Search by title"
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+  />
+  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+    <option value="">All Statuses</option>
+    <option value="open">Open</option>
+    <option value="in_progress">In Progress</option>
+    <option value="resolved">Resolved</option>
+  </select>
+  <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
+    <option value="">All Severities</option>
+    <option value="critical">Critical</option>
+    <option value="high">High</option>
+    <option value="moderate">Moderate</option>
+    <option value="low">Low</option>
+  </select>
+  <select
+    value={assignedUserFilter}
+    onChange={(e) => setAssignedUserFilter(e.target.value)}
+  >
+    <option value="">All Assignees</option>
+    {users.map((user) => (
+      <option key={user._id} value={user._id}>
+        {user.email}
+      </option>
+    ))}
+  </select>
+</div>
+
 
       <DragDropContext onDragEnd={onDragEnd}>
         <div style={{ display: "flex", gap: "1rem", marginTop: "2rem" }}>
