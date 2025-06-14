@@ -1,5 +1,7 @@
 const Incident = require("../models/Incident");
 const User = require("../models/User");
+const AuditLog = require("../models/AuditLog");
+
 
 
 const createIncident = async (req, res) => {
