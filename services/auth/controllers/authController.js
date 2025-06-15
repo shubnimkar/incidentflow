@@ -9,6 +9,9 @@ const register = async (req, res) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: "Email already in use" });
 
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email)}&background=random`;
+
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = new User({ name, email, password: hashedPassword, role });
