@@ -8,7 +8,9 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ["responder", "admin"],
-    default: "responder", // 👈 default role on registration
+    default: "responder", 
+    avatarUrl: { type: String }, // ✅ new field
+
   },
 });
 

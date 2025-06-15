@@ -1,27 +1,24 @@
+
+// Enhanced Dashboard.js with Tailwind CSS styling, avatars, admin badges, and better layout
 import React, { useEffect, useState } from "react";
 import { incidentApi, userApi } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
-// Token and role extraction
 const token = localStorage.getItem("token");
 const decodedToken = token ? JSON.parse(atob(token.split(".")[1])) : null;
 const isAdmin = decodedToken?.role === "admin";
-
-
 
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
   const [assignedUserFilter, setAssignedUserFilter] = useState("");
+  const navigate = useNavigate();
 
-
-  // Fetch incidents
   useEffect(() => {
     const fetchIncidents = async () => {
       try {
@@ -35,7 +32,6 @@ function Dashboard() {
     fetchIncidents();
   }, []);
 
-  // Fetch users
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -48,271 +44,216 @@ function Dashboard() {
     fetchUsers();
   }, []);
 
-  // Assign incident to a user
   const handleAssign = async (incidentId, userId) => {
     try {
       await incidentApi.patch(`/incidents/${incidentId}/assign`, {
         assignedTo: userId,
       });
-      alert("Incident assigned successfully!");
       const res = await incidentApi.get("/incidents");
       setIncidents(res.data);
     } catch (err) {
       console.error("Failed to assign incident", err);
-      alert("Failed to assign incident");
     }
   };
 
-  // Logout handler
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/");
   };
 
-  // Group incidents by status
   const filteredIncidents = incidents.filter((incident) => {
-  const matchesTitle = incident.title.toLowerCase().includes(searchTerm.toLowerCase());
-  const matchesStatus = statusFilter ? incident.status === statusFilter : true;
-  const matchesSeverity = severityFilter
-    ? incident.severity?.toLowerCase() === severityFilter
-    : true;
-  const matchesAssignedUser = assignedUserFilter
-    ? incident.assignedTo?._id === assignedUserFilter
-    : true;
+    const matchesTitle = incident.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter ? incident.status === statusFilter : true;
+    const matchesSeverity = severityFilter
+      ? incident.severity?.toLowerCase() === severityFilter
+      : true;
+    const matchesAssignedUser = assignedUserFilter
+      ? incident.assignedTo?._id === assignedUserFilter
+      : true;
+    return matchesTitle && matchesStatus && matchesSeverity && matchesAssignedUser;
+  });
 
-  return matchesTitle && matchesStatus && matchesSeverity && matchesAssignedUser;
-});
+  const groupedIncidents = { open: [], in_progress: [], resolved: [] };
+  filteredIncidents.forEach((i) => {
+    groupedIncidents[i.status]?.push(i);
+  });
 
-const groupedIncidents = {
-  open: [],
-  in_progress: [],
-  resolved: [],
-};
-
-filteredIncidents.forEach((i) => {
-  groupedIncidents[i.status]?.push(i);
-});
-
-
-  // Handle drag and drop
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
-
     const updatedIncidents = incidents.map((incident) =>
       incident._id === draggableId
         ? { ...incident, status: destination.droppableId }
         : incident
     );
-
     setIncidents(updatedIncidents);
-
     try {
       await incidentApi.patch(`/incidents/${draggableId}`, {
         status: destination.droppableId,
       });
     } catch (err) {
       console.error("Failed to update status", err);
-      alert("Error updating status. Reverting change.");
       setIncidents(incidents); // revert
     }
   };
 
-  // Get severity badge color
   const getSeverityBadgeColor = (severity) => {
     switch (severity.toLowerCase()) {
-      case "critical": return "#d32f2f";
-      case "high": return "#f57c00";
-      case "moderate": return "#fbc02d";
-      case "low": return "#388e3c";
-      default: return "#9e9e9e";
+      case "critical": return "bg-red-600";
+      case "high": return "bg-orange-500";
+      case "moderate": return "bg-yellow-400";
+      case "low": return "bg-green-600";
+      default: return "bg-gray-400";
     }
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>Incident Dashboard</h2>
-        <button onClick={handleLogout}>Logout</button>
+    <div className="p-6">
+      <div className="bg-white shadow-sm px-6 py-4 mb-6 flex justify-between items-center">
+        <h2 className="text-2xl font-semibold text-gray-800">🚨 Incident Management</h2>
+        <div className="flex items-center gap-4">
+          {isAdmin && (
+            <Link to="/admin" className="bg-gray-100 hover:bg-gray-200 text-sm text-black px-4 py-2 rounded shadow">
+              🔧 Admin Panel
+            </Link>
+          )}
+          <button onClick={handleLogout} className="bg-red-500 text-white text-sm px-4 py-2 rounded hover:bg-red-600 shadow">
+            Logout
+          </button>
+        </div>
       </div>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div className="mb-4">
         <Link to="/create">
-          <button>+ Create New Incident</button>
+          <button className="bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-600">+ Create New Incident</button>
         </Link>
       </div>
 
-      {isAdmin && (
-        <div style={{ marginBottom: "1rem" }}>
-          <Link to="/admin">
-            <button style={{ backgroundColor: "#e0e0e0", color: "black" }}>
-              🔧 Admin Panel
-            </button>
-          </Link>
-        </div>
-      )}
+      {error && <p className="text-red-600">{error}</p>}
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-
-      <div style={{ display: "flex", gap: "1rem", marginTop: "1rem", flexWrap: "wrap" }}>
-  <input
-    type="text"
-    placeholder="Search by title"
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-  />
-  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-    <option value="">All Statuses</option>
-    <option value="open">Open</option>
-    <option value="in_progress">In Progress</option>
-    <option value="resolved">Resolved</option>
-  </select>
-  <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
-    <option value="">All Severities</option>
-    <option value="critical">Critical</option>
-    <option value="high">High</option>
-    <option value="moderate">Moderate</option>
-    <option value="low">Low</option>
-  </select>
-  <select
-    value={assignedUserFilter}
-    onChange={(e) => setAssignedUserFilter(e.target.value)}
-  >
-    <option value="">All Assignees</option>
-    {users.map((user) => (
-      <option key={user._id} value={user._id}>
-        {user.email}
-      </option>
-    ))}
-  </select>
-</div>
-
+      <div className="flex gap-3 flex-wrap mb-6">
+        <input type="text" placeholder="Search by title" value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="border px-2 py-1 rounded"
+        />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border px-2 py-1 rounded">
+          <option value="">All Statuses</option>
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+        </select>
+        <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="border px-2 py-1 rounded">
+          <option value="">All Severities</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="moderate">Moderate</option>
+          <option value="low">Low</option>
+        </select>
+        <select value={assignedUserFilter} onChange={(e) => setAssignedUserFilter(e.target.value)} className="border px-2 py-1 rounded">
+          <option value="">All Assignees</option>
+          {users.map((user) => (
+            <option key={user._id} value={user._id}>
+              {user.email} {user.role === "admin" ? "👑" : ""}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div style={{ display: "flex", gap: "1rem", marginTop: "2rem" }}>
+        <div className="flex gap-4 overflow-x-auto">
           {Object.entries(groupedIncidents).map(([status, list]) => (
             <Droppable droppableId={status} key={status}>
               {(provided) => (
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  style={{
-                    flex: 1,
-                    border: "1px solid #ccc",
-                    padding: "1rem",
-                    borderRadius: "5px",
-                    background: "#f9f9f9",
-                    minHeight: "500px",
-                    overflowY: "auto",
-                  }}
+                  className="w-full max-w-md bg-gray-50 rounded shadow-md p-4"
                 >
-                  <h3 style={{ textTransform: "capitalize", textAlign: "center" }}>
+                  <h3 className="text-lg font-bold text-center capitalize mb-4">
                     {status.replace("_", " ")}
                   </h3>
-
                   {list.map((incident, index) => (
-                    <Draggable
-                      key={incident._id}
-                      draggableId={incident._id.toString()}
-                      index={index}
-                    >
+                    <Draggable key={incident._id} draggableId={incident._id.toString()} index={index}>
                       {(provided) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
-                          style={{
-                            ...provided.draggableProps.style,
-                            background: "white",
-                            padding: "1rem",
-                            marginBottom: "1rem",
-                            borderRadius: "5px",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                          }}
+                          className="bg-white rounded shadow p-3 mb-3"
                         >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                            }}
-                          >
+                          <div className="flex justify-between items-center">
                             <strong>{incident.title}</strong>
-                            <span
-                              style={{
-                                backgroundColor: getSeverityBadgeColor(incident.severity),
-                                color: "white",
-                                borderRadius: "4px",
-                                padding: "2px 8px",
-                                fontSize: "0.75rem",
-                                fontWeight: "bold",
-                              }}
-                            >
+                            <span className={`text-white text-xs px-2 py-1 rounded ${getSeverityBadgeColor(incident.severity)}`}>
                               {incident.severity}
                             </span>
                           </div>
 
-                          <small>Created by: {incident.createdBy?.email || "N/A"}</small>
-                          <br />
-                          <small>Assigned to: {incident.assignedTo?.email || "Unassigned"}</small>
-                          <br />
+                          <div className="flex items-center gap-2 mt-2 mb-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
+                              {incident.assignedTo?.email?.charAt(0).toUpperCase() || "?"}
+                            </div>
+                            <p className="text-xs text-gray-700">
+                              Assigned to: {incident.assignedTo?.email || "Unassigned"}
+                              {incident.assignedTo?.role === "admin" && <span className="text-yellow-600 ml-1">👑 Admin</span>}
+                            </p>
+                          </div>
 
                           <select
                             value={incident.assignedTo?._id || ""}
                             onChange={(e) => handleAssign(incident._id, e.target.value)}
+                            className="w-full mt-1 mb-2 border px-2 py-1 rounded"
                           >
                             <option value="">Assign to...</option>
                             {users.map((user) => (
                               <option key={user._id} value={user._id}>
-                                {user.email}
+                                {user.email} {user.role === "admin" ? "👑" : ""}
                               </option>
                             ))}
                           </select>
 
-                          <div style={{ marginTop: "1rem" }}>
-                            <form
-                              onSubmit={async (e) => {
-                                e.preventDefault();
-                                const commentText = e.target.elements.comment.value;
-                                try {
-                                  await incidentApi.post(`/incidents/${incident._id}/comments`, {
-                                    message: commentText,
-                                  });
-                                  e.target.reset();
-                                  const res = await incidentApi.get("/incidents");
-                                  setIncidents(res.data);
-                                } catch (err) {
-                                  alert("Failed to add comment");
-                                }
-                              }}
-                            >
-                              <input
-                                type="text"
-                                name="comment"
-                                placeholder="Add a comment"
-                                required
-                              />
-                              <button type="submit">Post</button>
-                            </form>
+                          <form
+                            onSubmit={async (e) => {
+                              e.preventDefault();
+                              const commentText = e.target.elements.comment.value;
+                              try {
+                                await incidentApi.post(`/incidents/${incident._id}/comments`, {
+                                  message: commentText,
+                                });
+                                e.target.reset();
+                                const res = await incidentApi.get("/incidents");
+                                setIncidents(res.data);
+                              } catch (err) {
+                                alert("Failed to add comment");
+                              }
+                            }}
+                          >
+                            <input
+                              type="text"
+                              name="comment"
+                              placeholder="Add a comment"
+                              required
+                              className="w-full border px-2 py-1 mt-1 mb-2 rounded"
+                            />
+                            <button type="submit" className="bg-blue-500 text-white px-3 py-1 text-sm rounded hover:bg-blue-600">
+                              Post
+                            </button>
+                          </form>
 
-                            <Link to={`/incidents/${incident._id}`}>
-                              View Details
-                            </Link>
+                          <Link to={`/incidents/${incident._id}`} className="text-blue-600 text-sm hover:underline">
+                            View Details
+                          </Link>
 
-                            <ul>
-                              {incident.comments?.map((c, idx) => (
-                                <li key={idx}>
-                                  <strong>{c.user?.email || "User"}:</strong> {c.comment}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                          <ul className="mt-2 text-xs">
+                            {incident.comments?.map((c, idx) => (
+                              <li key={idx}>
+                                <strong>{c.user?.email || "User"}:</strong> {c.comment}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
                     </Draggable>
                   ))}
-
                   {provided.placeholder}
                 </div>
               )}
