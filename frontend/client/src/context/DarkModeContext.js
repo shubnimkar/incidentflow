@@ -1,4 +1,4 @@
-import React, { createContext, useState, useLayoutEffect } from "react";
+import React, { createContext, useState, useLayoutEffect, useContext } from "react";
 
 export const DarkModeContext = createContext();
 
@@ -22,3 +22,4 @@ export const DarkModeProvider = ({ children }) => {
     </DarkModeContext.Provider>
   );
 };
+export const useDarkMode = () => useContext(DarkModeContext);
