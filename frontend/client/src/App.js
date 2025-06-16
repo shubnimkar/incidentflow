@@ -8,11 +8,12 @@ import IncidentDetails from './pages/IncidentDetails';
 import AdminPanel from "./pages/AdminPanel";
 import { getCurrentUser } from './utils/auth';
 import NotAuthorized from './pages/NotAuthorized';
-
+import { DarkModeProvider } from "./context/DarkModeContext";
 
 
 function App() {
   return (
+    <DarkModeProvider>
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
@@ -33,6 +34,7 @@ function App() {
               />
       </Routes>
     </Router>
+    </DarkModeProvider>
   );
 }
 

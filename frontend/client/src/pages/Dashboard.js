@@ -1,9 +1,8 @@
-
-// Enhanced Dashboard.js with Tailwind CSS styling, avatars, admin badges, and better layout
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { incidentApi, userApi } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { DarkModeContext } from "../context/DarkModeContext";
 
 const token = localStorage.getItem("token");
 const decodedToken = token ? JSON.parse(atob(token.split(".")[1])) : null;
@@ -17,6 +16,8 @@ function Dashboard() {
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
   const [assignedUserFilter, setAssignedUserFilter] = useState("");
+
+  const { darkMode, toggleDarkMode } = useContext(DarkModeContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -108,12 +109,18 @@ function Dashboard() {
   };
 
   return (
-    <div className="p-6">
-      <div className="bg-white shadow-sm px-6 py-4 mb-6 flex justify-between items-center">
-        <h2 className="text-2xl font-semibold text-gray-800">🚨 Incident Management</h2>
+    <div className="p-6 bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-white">
+      <div className="bg-white dark:bg-gray-800 shadow-sm px-6 py-4 mb-6 flex justify-between items-center rounded">
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">🚨 Incident Management</h2>
         <div className="flex items-center gap-4">
+          <button
+            onClick={toggleDarkMode}
+            className="bg-gray-200 dark:bg-gray-700 text-sm px-3 py-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+          >
+            {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
+          </button>
           {isAdmin && (
-            <Link to="/admin" className="bg-gray-100 hover:bg-gray-200 text-sm text-black px-4 py-2 rounded shadow">
+            <Link to="/admin" className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm px-4 py-2 rounded shadow">
               🔧 Admin Panel
             </Link>
           )}
@@ -129,27 +136,42 @@ function Dashboard() {
         </Link>
       </div>
 
-      {error && <p className="text-red-600">{error}</p>}
+      {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
 
       <div className="flex gap-3 flex-wrap mb-6">
-        <input type="text" placeholder="Search by title" value={searchTerm}
+        <input
+          type="text"
+          placeholder="Search by title"
+          value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="border px-2 py-1 rounded"
+          className="border px-2 py-1 rounded dark:bg-gray-800 dark:text-white"
         />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border px-2 py-1 rounded">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border px-2 py-1 rounded dark:bg-gray-800 dark:text-white"
+        >
           <option value="">All Statuses</option>
           <option value="open">Open</option>
           <option value="in_progress">In Progress</option>
           <option value="resolved">Resolved</option>
         </select>
-        <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="border px-2 py-1 rounded">
+        <select
+          value={severityFilter}
+          onChange={(e) => setSeverityFilter(e.target.value)}
+          className="border px-2 py-1 rounded dark:bg-gray-800 dark:text-white"
+        >
           <option value="">All Severities</option>
           <option value="critical">Critical</option>
           <option value="high">High</option>
           <option value="moderate">Moderate</option>
           <option value="low">Low</option>
         </select>
-        <select value={assignedUserFilter} onChange={(e) => setAssignedUserFilter(e.target.value)} className="border px-2 py-1 rounded">
+        <select
+          value={assignedUserFilter}
+          onChange={(e) => setAssignedUserFilter(e.target.value)}
+          className="border px-2 py-1 rounded dark:bg-gray-800 dark:text-white"
+        >
           <option value="">All Assignees</option>
           {users.map((user) => (
             <option key={user._id} value={user._id}>
@@ -167,9 +189,9 @@ function Dashboard() {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="w-full max-w-md bg-gray-50 rounded shadow-md p-4"
+                  className="w-full max-w-md bg-gray-50 dark:bg-gray-800 rounded shadow-md p-4"
                 >
-                  <h3 className="text-lg font-bold text-center capitalize mb-4">
+                  <h3 className="text-lg font-bold text-center capitalize mb-4 text-gray-800 dark:text-white">
                     {status.replace("_", " ")}
                   </h3>
                   {list.map((incident, index) => (
@@ -179,7 +201,7 @@ function Dashboard() {
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
-                          className="bg-white rounded shadow p-3 mb-3"
+                          className="bg-white dark:bg-gray-700 rounded shadow p-3 mb-3"
                         >
                           <div className="flex justify-between items-center">
                             <strong>{incident.title}</strong>
@@ -192,16 +214,16 @@ function Dashboard() {
                             <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
                               {incident.assignedTo?.email?.charAt(0).toUpperCase() || "?"}
                             </div>
-                            <p className="text-xs text-gray-700">
+                            <p className="text-xs text-gray-700 dark:text-gray-200">
                               Assigned to: {incident.assignedTo?.email || "Unassigned"}
-                              {incident.assignedTo?.role === "admin" && <span className="text-yellow-600 ml-1">👑 Admin</span>}
+                              {incident.assignedTo?.role === "admin" && <span className="text-yellow-400 ml-1">👑 Admin</span>}
                             </p>
                           </div>
 
                           <select
                             value={incident.assignedTo?._id || ""}
                             onChange={(e) => handleAssign(incident._id, e.target.value)}
-                            className="w-full mt-1 mb-2 border px-2 py-1 rounded"
+                            className="w-full mt-1 mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white"
                           >
                             <option value="">Assign to...</option>
                             {users.map((user) => (
@@ -232,14 +254,14 @@ function Dashboard() {
                               name="comment"
                               placeholder="Add a comment"
                               required
-                              className="w-full border px-2 py-1 mt-1 mb-2 rounded"
+                              className="w-full border px-2 py-1 mt-1 mb-2 rounded dark:bg-gray-800 dark:text-white"
                             />
                             <button type="submit" className="bg-blue-500 text-white px-3 py-1 text-sm rounded hover:bg-blue-600">
                               Post
                             </button>
                           </form>
 
-                          <Link to={`/incidents/${incident._id}`} className="text-blue-600 text-sm hover:underline">
+                          <Link to={`/incidents/${incident._id}`} className="text-blue-600 dark:text-blue-300 text-sm hover:underline">
                             View Details
                           </Link>
 
