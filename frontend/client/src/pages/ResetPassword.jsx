@@ -1,7 +1,20 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react"; // optional icons
+import { Loader2, CheckCircle, AlertCircle, Eye, EyeOff } from "lucide-react";
+
+// Password strength utility
+const getPasswordStrength = (password) => {
+  let score = 0;
+  if (password.length >= 6) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 1) return { label: "Weak", color: "text-red-500" };
+  if (score === 2 || score === 3) return { label: "Moderate", color: "text-yellow-500" };
+  return { label: "Strong", color: "text-green-500" };
+};
 
 const ResetPassword = () => {
   const { token } = useParams();
@@ -12,13 +25,14 @@ const ResetPassword = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleReset = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    // Basic validations
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
       return;
@@ -32,9 +46,10 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/reset-password/${token}`, {
-        password,
-      });
+      await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/auth/reset-password/${token}`,
+        { password }
+      );
 
       setSuccess("Password reset successful! Redirecting...");
       setTimeout(() => navigate("/"), 2000);
@@ -45,8 +60,10 @@ const ResetPassword = () => {
     }
   };
 
+  const strength = getPasswordStrength(password);
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 px-4">
       <form
         onSubmit={handleReset}
         className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md w-full max-w-md"
@@ -69,22 +86,63 @@ const ResetPassword = () => {
           </div>
         )}
 
-        <input
-          type="password"
-          placeholder="New Password"
-          className="w-full p-2 mb-3 rounded border dark:bg-gray-700 dark:text-white"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Confirm Password"
-          className="w-full p-2 mb-4 rounded border dark:bg-gray-700 dark:text-white"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-        />
+        {/* New Password */}
+        <div className="relative mb-2">
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="New Password"
+            className="w-full p-2 pr-10 rounded border dark:bg-gray-700 dark:text-white"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-2 text-gray-600 dark:text-white"
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+
+        {/* Password Strength */}
+        {password && (
+          <p className={`text-sm mb-3 ${strength.color}`}>
+            Strength: {strength.label}
+          </p>
+        )}
+
+        {/* Confirm Password */}
+        <div className="relative mb-2">
+          <input
+            type={showConfirmPassword ? "text" : "password"}
+            placeholder="Confirm Password"
+            className="w-full p-2 pr-10 rounded border dark:bg-gray-700 dark:text-white"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-2 text-gray-600 dark:text-white"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+          >
+            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+
+        {/* Live password match status */}
+        {confirmPassword && (
+          <p
+            className={`text-sm mb-4 ${
+              password === confirmPassword ? "text-green-500" : "text-red-500"
+            }`}
+          >
+            {password === confirmPassword
+              ? "✅ Passwords match"
+              : "❌ Passwords do not match"}
+          </p>
+        )}
 
         <button
           type="submit"
