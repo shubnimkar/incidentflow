@@ -18,6 +18,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const { darkMode, toggleDarkMode } = React.useContext(DarkModeContext);
+  console.log("Sidebar user:", user); // 👈 Check this
+
 
   const navLinks = [
     {
@@ -40,7 +42,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/");
   };
 
   return (

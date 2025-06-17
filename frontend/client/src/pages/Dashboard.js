@@ -1,13 +1,8 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import { incidentApi, userApi } from "../services/api";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { DarkModeContext } from "../context/DarkModeContext";
 
-
-const token = localStorage.getItem("token");
-const decodedToken = token ? JSON.parse(atob(token.split(".")[1])) : null;
-const isAdmin = decodedToken?.role === "admin";
 
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
@@ -18,8 +13,6 @@ function Dashboard() {
   const [severityFilter, setSeverityFilter] = useState("");
   const [assignedUserFilter, setAssignedUserFilter] = useState("");
 
-  const { darkMode, toggleDarkMode } = useContext(DarkModeContext);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchIncidents = async () => {
@@ -56,11 +49,6 @@ function Dashboard() {
     } catch (err) {
       console.error("Failed to assign incident", err);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/");
   };
 
   const filteredIncidents = incidents.filter((incident) => {
@@ -113,23 +101,7 @@ function Dashboard() {
     <div className="p-6 bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-white">
       <div className="bg-white dark:bg-gray-800 shadow-sm px-6 py-4 mb-6 flex justify-between items-center rounded">
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">🚨 Incident Management</h2>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={toggleDarkMode}
-            className="bg-gray-200 dark:bg-gray-700 text-sm px-3 py-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-          >
-            {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
-          </button>
-          {isAdmin && (
-            <Link to="/admin" className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm px-4 py-2 rounded shadow">
-              🔧 Admin Panel
-            </Link>
-          )}
-          <button onClick={handleLogout} className="bg-red-500 text-white text-sm px-4 py-2 rounded hover:bg-red-600 shadow">
-            Logout
-          </button>
         </div>
-      </div>
 
       <div className="mb-4">
         <Link to="/create">
