@@ -10,6 +10,10 @@ import NotAuthorized from "./pages/NotAuthorized";
 import Layout from "./components/Layout";
 import { DarkModeProvider } from "./context/DarkModeContext";
 import { getCurrentUser } from "./utils/auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+
+
 
 function App() {
   const user = getCurrentUser();
@@ -21,6 +25,10 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+
 
           {/* Protected Layout Wrapper */}
           <Route element={<Layout />}>
