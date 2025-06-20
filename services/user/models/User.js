@@ -3,15 +3,15 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema({
+  name: { type: String, required: true }, // ✅ Add this
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: {
     type: String,
     enum: ["responder", "admin"],
-    default: "responder", 
-    avatarUrl: { type: String }, // ✅ new field
-
+    default: "responder",
   },
+  avatarUrl: { type: String }, // ✅ Move it outside of 'role'
 });
 
 userSchema.pre("save", async function (next) {
