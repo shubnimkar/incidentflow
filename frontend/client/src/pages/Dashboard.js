@@ -103,12 +103,6 @@ function Dashboard() {
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">🚨 Incident Management</h2>
         </div>
 
-      <div className="mb-4">
-        <Link to="/create">
-          <button className="bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-600">+ Create New Incident</button>
-        </Link>
-      </div>
-
       {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
 
       <div className="flex gap-3 flex-wrap mb-6">
