@@ -12,7 +12,7 @@ import { DarkModeProvider } from "./context/DarkModeContext";
 import { getCurrentUser } from "./utils/auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-
+import { Toaster } from "react-hot-toast";
 
 
 function App() {
@@ -21,6 +21,7 @@ function App() {
   return (
     <DarkModeProvider>
       <Router>
+          <Toaster position="top-right" reverseOrder={false} />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Login />} />

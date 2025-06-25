@@ -1,7 +1,8 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-module.exports = async (req, res, next) => {
+// 🔐 Auth Middleware
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -18,10 +19,24 @@ module.exports = async (req, res, next) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    req.user = user; // attach full user to request
+    req.user = user; // attach full user object
     next();
   } catch (err) {
     console.error("Token verification failed:", err);
     return res.status(401).json({ message: "Invalid token" });
   }
+};
+
+// ✅ Admin Check Middleware
+const authorizeAdmin = (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admins only" });
+  }
+  next();
+};
+
+// ✅ Export both
+module.exports = {
+  authenticateToken,
+  authorizeAdmin,
 };

@@ -1,29 +1,39 @@
 const express = require("express");
-const { register, login } = require("../controllers/userController");
+const {
+  register,
+  login,
+  deleteUser,
+} = require("../controllers/userController");
+
 const User = require("../models/User");
-const verifyToken = require("../middleware/auth");
-const requireAdmin = require("../middleware/admin");
+const { authenticateToken, authorizeAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
+// ✅ Public routes
 router.post("/register", register);
 router.post("/login", login);
 
-// 🔐 Fetch all users (admin only)
-router.get("/", verifyToken, requireAdmin, async (req, res) => {
+// ✅ Admin-protected routes
+router.use(authenticateToken, authorizeAdmin);
+
+// ✅ Get all users (admin only)
+router.get("/", async (req, res) => {
   try {
     const users = await User.find().select("-password");
     res.json(users);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Failed to fetch users:", err);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
-// 🔧 Change role (admin only)
-router.patch("/:id/role", verifyToken, requireAdmin, async (req, res) => {
+// ✅ Change user role (admin only)
+router.patch("/:id/role", async (req, res) => {
   const { role } = req.body;
+
   if (!["admin", "responder"].includes(role)) {
-    return res.status(400).json({ message: "Invalid role" });
+    return res.status(400).json({ message: "Invalid role provided" });
   }
 
   try {
@@ -37,9 +47,14 @@ router.patch("/:id/role", verifyToken, requireAdmin, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({ message: "Role updated", user });
+    res.json({ message: "Role updated successfully", user });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Failed to change role:", err);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
+
+// ✅ Delete user (admin only)
+router.delete("/:id", deleteUser);
+
 module.exports = router;
