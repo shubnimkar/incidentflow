@@ -13,6 +13,7 @@ import { getCurrentUser } from "./utils/auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { Toaster } from "react-hot-toast";
+import OnCallSchedule from "./pages/OnCallSchedule";
 
 
 function App() {
@@ -28,6 +29,8 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/oncall-schedule" element={<OnCallSchedule />} />
+
 
 
 
