@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { onCallApi, userApi } from "../services/api";
+import { Link } from "react-router-dom";
+
+
 
 function OnCallSchedule() {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editSchedule, setEditSchedule] = useState(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -30,18 +34,44 @@ function OnCallSchedule() {
     }
   };
 
+  const handleEdit = (schedule) => {
+    setEditSchedule(schedule);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this schedule?")) return;
+    try {
+      await onCallApi.delete(`/oncall-schedules/${id}`);
+      await fetchSchedules();
+    } catch (err) {
+      console.error("Failed to delete schedule", err);
+    }
+  };
+
   if (loading) return <p className="text-center">Loading schedules...</p>;
 
   return (
     <div className="p-6 text-gray-900 dark:text-white">
       <h2 className="text-2xl font-bold mb-4">📆 On-Call Schedules</h2>
+      
 
       <button
-        onClick={() => setShowModal(true)}
+        onClick={() => {
+          setEditSchedule(null);
+          setIsModalOpen(true);
+        }}
         className="bg-green-600 text-white px-4 py-2 rounded mb-4 hover:bg-green-700"
       >
         ➕ Create Schedule
       </button>
+
+      <Link
+        to="/oncall-timeline"
+        className="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 ml-4"
+        >
+        🗓️ View Timeline
+        </Link>
 
       {schedules.length === 0 ? (
         <p>No schedules found.</p>
@@ -60,8 +90,7 @@ function OnCallSchedule() {
             <tbody>
               {schedules.map((s) => {
                 const current = s.users[s.currentOnCallIndex];
-                const next =
-                  s.users[(s.currentOnCallIndex + 1) % s.users.length];
+                const next = s.users[(s.currentOnCallIndex + 1) % s.users.length];
 
                 return (
                   <tr key={s._id} className="border-t border-gray-200">
@@ -69,12 +98,24 @@ function OnCallSchedule() {
                     <td className="p-3">{current?.userId?.email}</td>
                     <td className="p-3 capitalize">{s.rotationType}</td>
                     <td className="p-3">{next?.userId?.email}</td>
-                    <td className="p-3">
+                    <td className="p-3 space-x-2">
                       <button
                         onClick={() => handleRotate(s._id)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                        className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 text-sm"
                       >
-                        🔁 Rotate
+                        🔁
+                      </button>
+                      <button
+                        onClick={() => handleEdit(s)}
+                        className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 text-sm"
+                      >
+                        📝
+                      </button>
+                      <button
+                        onClick={() => handleDelete(s._id)}
+                        className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 text-sm"
+                      >
+                        🗑️
                       </button>
                     </td>
                   </tr>
@@ -85,23 +126,25 @@ function OnCallSchedule() {
         </div>
       )}
 
-      {showModal && (
+      {isModalOpen && (
         <CreateScheduleModal
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditSchedule(null);
+          }}
           onCreated={fetchSchedules}
+          existing={editSchedule}
         />
       )}
     </div>
   );
 }
 
-function CreateScheduleModal({ onClose, onCreated }) {
+function CreateScheduleModal({ onClose, onCreated, existing }) {
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
   const [rotationType, setRotationType] = useState("weekly");
-  const [users, setUsers] = useState([
-    { userId: "", startDate: "", endDate: "" },
-  ]);
+  const [users, setUsers] = useState([{ userId: "", startDate: "", endDate: "" }]);
   const [userList, setUserList] = useState([]);
 
   useEffect(() => {
@@ -116,6 +159,21 @@ function CreateScheduleModal({ onClose, onCreated }) {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    if (existing) {
+      setName(existing.name || "");
+      setTeam(existing.team || "");
+      setRotationType(existing.rotationType || "weekly");
+      setUsers(
+        (existing.users || []).map((u) => ({
+          userId: u.userId._id || u.userId,
+          startDate: u.startDate,
+          endDate: u.endDate,
+        }))
+      );
+    }
+  }, [existing]);
+
   const handleChange = (index, field, value) => {
     const updated = [...users];
     updated[index][field] = value;
@@ -129,16 +187,25 @@ function CreateScheduleModal({ onClose, onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await onCallApi.post("/oncall-schedules", {
-        name,
-        team,
-        rotationType,
-        users,
-      });
+      if (existing) {
+        await onCallApi.put(`/oncall-schedules/${existing._id}`, {
+          name,
+          team,
+          rotationType,
+          users,
+        });
+      } else {
+        await onCallApi.post("/oncall-schedules", {
+          name,
+          team,
+          rotationType,
+          users,
+        });
+      }
       onCreated();
       onClose();
     } catch (err) {
-      console.error("Failed to create schedule", err);
+      console.error("Failed to save schedule", err);
     }
   };
 
@@ -148,7 +215,9 @@ function CreateScheduleModal({ onClose, onCreated }) {
         onSubmit={handleSubmit}
         className="bg-white dark:bg-gray-800 p-6 rounded shadow-md w-[90%] max-w-lg"
       >
-        <h3 className="text-xl font-bold mb-4">Create On-Call Schedule</h3>
+        <h3 className="text-xl font-bold mb-4">
+          {existing ? "Edit On-Call Schedule" : "Create On-Call Schedule"}
+        </h3>
 
         <label className="block mb-2">
           Schedule Name
@@ -202,23 +271,18 @@ function CreateScheduleModal({ onClose, onCreated }) {
               </select>
               <input
                 type="date"
-                value={u.startDate}
-                onChange={(e) =>
-                  handleChange(index, "startDate", e.target.value)
-                }
+                value={u.startDate?.split("T")[0]}
+                onChange={(e) => handleChange(index, "startDate", e.target.value)}
                 className="w-1/3 p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
               />
               <input
                 type="date"
-                value={u.endDate}
-                onChange={(e) =>
-                  handleChange(index, "endDate", e.target.value)
-                }
+                value={u.endDate?.split("T")[0]}
+                onChange={(e) => handleChange(index, "endDate", e.target.value)}
                 className="w-1/3 p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
               />
             </div>
           ))}
-
           <button
             type="button"
             onClick={addUserRow}
@@ -240,7 +304,7 @@ function CreateScheduleModal({ onClose, onCreated }) {
             type="submit"
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Create
+            {existing ? "Update" : "Create"}
           </button>
         </div>
       </form>

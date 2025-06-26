@@ -68,3 +68,57 @@ exports.rotateSchedule = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// Edit a schedule
+exports.updateSchedule = async (req, res) => {
+  try {
+    const updated = await OnCallSchedule.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!updated) return res.status(404).json({ message: "Schedule not found" });
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// Delete a schedule
+exports.deleteSchedule = async (req, res) => {
+  try {
+    const deleted = await OnCallSchedule.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: "Schedule not found" });
+    res.json({ message: "Schedule deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// onCallController.js (at the bottom)
+
+exports.updateUserScheduleDates = async (req, res) => {
+  const { userId, startDate, endDate } = req.body;
+
+  try {
+    const schedule = await OnCallSchedule.findById(req.params.id);
+    if (!schedule) {
+      return res.status(404).json({ message: "Schedule not found" });
+    }
+
+    const userEntry = schedule.users.id(userId);
+    if (!userEntry) {
+      return res.status(404).json({ message: "User not found in this schedule" });
+    }
+
+    userEntry.startDate = new Date(startDate);
+    userEntry.endDate = new Date(endDate);
+
+    await schedule.save();
+    res.status(200).json({ message: "User schedule updated successfully" });
+  } catch (error) {
+    console.error("Error updating user schedule:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
