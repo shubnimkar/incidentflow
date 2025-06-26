@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
-import { Loader2, X } from "lucide-react";
+import { X, Search } from "lucide-react";
 import { toast } from "react-hot-toast";
 import * as Dialog from "@radix-ui/react-dialog";
 
@@ -28,6 +28,7 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [modalType, setModalType] = useState(""); // "delete" or "role"
+  const [search, setSearch] = useState("");
   const token = localStorage.getItem("token");
 
   const decodedToken = token ? JSON.parse(atob(token.split('.')[1])) : null;
@@ -69,27 +70,26 @@ const AdminPanel = () => {
   };
 
   const deleteUser = async () => {
-  if (!selectedUser) return;
+    if (!selectedUser) return;
 
-  if (selectedUser.role === "admin") {
-    toast.error("Cannot delete an admin user");
-    setSelectedUser(null);
-    return;
-  }
+    if (selectedUser.role === "admin") {
+      toast.error("Cannot delete an admin user");
+      setSelectedUser(null);
+      return;
+    }
 
-  try {
-    await axios.delete(`http://localhost:5002/api/users/${selectedUser._id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    toast.success("User deleted successfully");
-    setSelectedUser(null);
-    fetchUsers();
-  } catch (err) {
-    console.error("Error deleting user:", err);
-    toast.error(err.response?.data?.message || "Delete failed");
-  }
-};
-
+    try {
+      await axios.delete(`http://localhost:5002/api/users/${selectedUser._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success("User deleted successfully");
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      toast.error(err.response?.data?.message || "Delete failed");
+    }
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -103,18 +103,46 @@ const AdminPanel = () => {
     );
   }
 
-  return (
-  <div className="p-6 md:p-10 min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
-    <h2 className="text-4xl font-bold mb-8 tracking-tight">👥 Admin Panel</h2>
+  // Filter users by search
+  const filteredUsers = users.filter(
+    (u) =>
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase())
+  );
 
-    {loading ? (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="animate-spin w-8 h-8 text-gray-500" />
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white px-2 sm:px-6 md:px-12 py-6">
+      {/* Hero Heading */}
+      <div className="flex flex-col gap-1 mb-6">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Admin Panel</h2>
+        </div>
+        <div className="h-0.5 w-32 bg-blue-100 dark:bg-gray-700 rounded-full mt-2 ml-12" />
       </div>
-    ) : (
-      <div className="overflow-x-auto rounded-lg shadow-sm border dark:border-gray-700 bg-white dark:bg-gray-800">
-        <table className="min-w-full table-auto">
-          <thead className="bg-gray-100 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 font-semibold uppercase tracking-wider">
+
+      {/* Search Bar */}
+      <div className="flex items-center gap-2 mb-4 max-w-md">
+        <div className="relative w-full">
+          <span className="absolute left-3 top-2.5 text-gray-400">
+            <Search className="w-4 h-4" />
+          </span>
+          <input
+            type="text"
+            placeholder="Search users by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+      </div>
+
+      {/* User Table Card */}
+      <div className="overflow-x-auto rounded-2xl shadow-lg border dark:border-gray-700 bg-white dark:bg-gray-800">
+        <table className="min-w-full table-auto rounded-2xl overflow-hidden">
+          <thead className="bg-gray-100 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 font-semibold uppercase tracking-wider">
             <tr>
               <th className="px-6 py-4 text-left">User</th>
               <th className="px-6 py-4 text-left">Role</th>
@@ -122,113 +150,136 @@ const AdminPanel = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => {
-              const isCurrentUser = u.email === currentUserEmail;
-              const avatarColor = getAvatarColor(u.email);
-              const initials = getInitials(u.name || u.email);
-
-              return (
-                <tr
-                  key={u._id}
-                  className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                >
-                  <td className="px-6 py-4 flex items-center gap-3">
-                    <div className={`w-10 h-10 flex items-center justify-center rounded-full ${avatarColor} text-white font-bold`}>
-                      {initials}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{u.name || u.email}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{u.email}</p>
-                      {isCurrentUser && (
-                        <span className="text-xs font-semibold text-purple-600 dark:text-purple-400">(You)</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-2 text-sm">
-                      {u.role}
-                      {u.role === "admin" && (
-                        <span className="px-2 py-0.5 text-xs font-bold bg-green-600 text-white rounded-md">
-                          ADMIN
-                        </span>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 flex gap-2">
-                    <button
-                      onClick={() => {
-                        if (!isCurrentUser) {
-                          setSelectedUser(u);
-                          setModalType("role");
-                        }
-                      }}
-                      disabled={isCurrentUser}
-                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
-                        isCurrentUser
-                          ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                          : u.role === "admin"
-                          ? "bg-red-500 hover:bg-red-600 text-white"
-                          : "bg-blue-500 hover:bg-blue-600 text-white"
-                      }`}
-                    >
-                      {u.role === "admin" ? "Demote" : "Promote"}
-                    </button>
-                    {!isCurrentUser && (
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="text-center py-8 text-gray-400 dark:text-gray-500">
+                  No users found.
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map((u, idx) => {
+                const isCurrentUser = u.email === currentUserEmail;
+                const avatarColor = getAvatarColor(u.email);
+                const initials = getInitials(u.name || u.email);
+                return (
+                  <tr
+                    key={u._id}
+                    className={`border-t border-gray-200 dark:border-gray-700 transition-all ${
+                      idx % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"
+                    } hover:bg-blue-50 dark:hover:bg-gray-700`}
+                  >
+                    <td className="px-6 py-4 flex items-center gap-4">
+                      <div className={`w-12 h-12 flex items-center justify-center rounded-full ${avatarColor} text-white font-bold shadow border-2 border-white dark:border-gray-800`}>
+                        {initials}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{u.name || u.email}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{u.email}</p>
+                        {isCurrentUser && (
+                          <span className="text-xs font-semibold text-purple-600 dark:text-purple-400">(You)</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full ${
+                        u.role === "admin"
+                          ? "bg-green-100 text-green-700 border border-green-300"
+                          : "bg-blue-100 text-blue-700 border border-blue-300"
+                      }`}>
+                        {u.role}
+                        {u.role === "admin" && (
+                          <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded-full">
+                            ADMIN
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 flex gap-2">
                       <button
                         onClick={() => {
-                          setSelectedUser(u);
-                          setModalType("delete");
+                          if (!isCurrentUser) {
+                            setSelectedUser(u);
+                            setModalType("role");
+                          }
                         }}
-                        className="px-4 py-1.5 rounded-md text-sm font-medium bg-gray-700 hover:bg-black text-white"
+                        disabled={isCurrentUser}
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold transition shadow-sm border ${
+                          isCurrentUser
+                            ? "bg-gray-200 text-gray-500 cursor-not-allowed border-gray-200"
+                            : u.role === "admin"
+                            ? "bg-red-100 text-red-700 hover:bg-red-200 border-red-200"
+                            : "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200"
+                        }`}
                       >
-                        Delete
+                        {u.role === "admin" ? "Demote" : "Promote"}
                       </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+                      {!isCurrentUser && (
+                        <button
+                          onClick={() => {
+                            setSelectedUser(u);
+                            setModalType("delete");
+                          }}
+                          className="px-4 py-1.5 rounded-full text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 shadow-sm"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
-    )}
-
 
       {/* Confirm Modal */}
       <Dialog.Root open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/40 z-40" />
-          <Dialog.Content className="fixed z-50 top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-            <div className="flex justify-between items-center mb-4">
-              <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-white">
-                {modalType === "delete" ? "Confirm Delete" : "Confirm Role Change"}
-              </Dialog.Title>
-              <Dialog.Close asChild>
-                <button className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                  <X size={20} />
-                </button>
-              </Dialog.Close>
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-xs sm:max-w-sm z-50 border border-gray-200 dark:border-gray-700 flex flex-col items-center">
+            <button
+              onClick={() => setSelectedUser(null)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className={`w-14 h-14 flex items-center justify-center rounded-full ${getAvatarColor(selectedUser?.email || "A")} text-white font-bold shadow border-2 border-white dark:border-gray-800 mb-4`}>
+              {getInitials(selectedUser?.name || selectedUser?.email || "A")}
             </div>
-            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
-              {modalType === "delete"
-                ? `Are you sure you want to delete user "${selectedUser?.email}"? This cannot be undone.`
-                : `Are you sure you want to change the role of "${selectedUser?.email}"?`}
-            </p>
-            <div className="flex justify-end gap-3">
-              <Dialog.Close asChild>
-                <button className="px-4 py-2 text-sm rounded bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white">
-                  Cancel
+            <h3 className="text-lg font-bold mb-1 text-center">{selectedUser?.name || selectedUser?.email}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 text-center">{selectedUser?.email}</p>
+            {modalType === "role" ? (
+              <>
+                <p className="mb-4 text-center">
+                  Are you sure you want to <span className="font-semibold">{selectedUser?.role === "admin" ? "demote" : "promote"}</span> this user?
+                </p>
+                <button
+                  onClick={changeRole}
+                  className="w-full px-4 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition mb-2"
+                >
+                  Yes, {selectedUser?.role === "admin" ? "Demote" : "Promote"}
                 </button>
-              </Dialog.Close>
-              <button
-                onClick={() => {
-                  modalType === "delete" ? deleteUser() : changeRole();
-                }}
-                className="px-4 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700"
-              >
-                Confirm
-              </button>
-            </div>
+              </>
+            ) : (
+              <>
+                <p className="mb-4 text-center text-red-600 dark:text-red-400">
+                  Are you sure you want to <span className="font-semibold">delete</span> this user?
+                </p>
+                <button
+                  onClick={deleteUser}
+                  className="w-full px-4 py-2 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition mb-2"
+                >
+                  Yes, Delete
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setSelectedUser(null)}
+              className="w-full px-4 py-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-white font-semibold hover:bg-gray-300 dark:hover:bg-gray-700 transition"
+            >
+              Cancel
+            </button>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
