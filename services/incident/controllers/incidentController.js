@@ -1,8 +1,20 @@
 const Incident = require("../models/Incident");
 const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
+const path = require("path");
+const multer = require("multer");
 
-
+// Multer setup for attachments
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../../uploads/incident-attachments'));
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage });
 
 const createIncident = async (req, res) => {
   const { title, description, severity } = req.body;
@@ -133,7 +145,8 @@ const getIncidentById = async (req, res) => {
     const incident = await Incident.findById(req.params.id)
       .populate("createdBy", "email")
       .populate("assignedTo", "email")
-      .populate("comments.user", "email role");
+      .populate("comments.user", "email role")
+      .populate("attachments.uploadedBy", "email");
 
     if (!incident) return res.status(404).json({ message: "Incident not found" });
 
@@ -144,5 +157,30 @@ const getIncidentById = async (req, res) => {
   }
 };
 
+// Attachment upload handler
+const uploadAttachment = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const incident = await Incident.findById(req.params.id);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+    const fileUrl = `/uploads/incident-attachments/${req.file.filename}`;
+    incident.attachments.push({
+      filename: req.file.originalname,
+      url: fileUrl,
+      uploadedBy: req.user.id,
+      uploadedAt: new Date(),
+    });
+    await incident.save();
+    const updatedIncident = await Incident.findById(req.params.id)
+      .populate("createdBy", "email")
+      .populate("assignedTo", "email")
+      .populate("comments.user", "email")
+      .populate("attachments.uploadedBy", "email");
+    res.status(201).json(updatedIncident);
+  } catch (err) {
+    console.error("Attachment upload error:", err);
+    res.status(500).json({ message: "Failed to upload attachment" });
+  }
+};
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment,getIncidentById };
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment };
