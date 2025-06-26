@@ -14,6 +14,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { Toaster } from "react-hot-toast";
 import OnCallSchedule from "./pages/OnCallSchedule";
+import OnCallTimeline from "./components/OnCallTimeline";
 
 
 function App() {
@@ -30,9 +31,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/oncall-schedule" element={<OnCallSchedule />} />
-
-
-
+          <Route path="/oncall-timeline" element={<OnCallTimeline />} />
 
           {/* Protected Layout Wrapper */}
           <Route element={<Layout />}>
