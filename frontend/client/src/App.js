@@ -30,14 +30,15 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/oncall-schedule" element={<OnCallSchedule />} />
-          <Route path="/oncall-timeline" element={<OnCallTimeline />} />
+          
 
           {/* Protected Layout Wrapper */}
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/create" element={<CreateIncident />} />
             <Route path="/incidents/:id" element={<IncidentDetails />} />
+            <Route path="/oncall-schedule" element={<OnCallSchedule />} />
+            <Route path="/oncall-timeline" element={<OnCallTimeline />} />
             <Route
               path="/admin"
               element={
