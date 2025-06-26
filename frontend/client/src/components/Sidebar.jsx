@@ -9,6 +9,8 @@ import {
   FaTachometerAlt,
   FaPlusCircle,
   FaUsersCog,
+  FaCalendarAlt,
+  FaClock,
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import { DarkModeContext } from "../context/DarkModeContext";
@@ -31,6 +33,16 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "Create Incident",
       path: "/create",
       icon: <FaPlusCircle />,
+    },
+    {
+    label: "On-Call Schedules",
+    path: "/oncall-schedule",
+    icon: <FaClock />,
+    },
+    {
+    label: "On-Call Calendar",
+    path: "/oncall-timeline",
+    icon: <FaCalendarAlt />,
     },
     {
       label: "Admin Panel",
