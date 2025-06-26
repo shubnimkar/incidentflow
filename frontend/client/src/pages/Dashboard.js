@@ -3,7 +3,6 @@ import { incidentApi, userApi } from "../services/api";
 import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
-
 function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [users, setUsers] = useState([]);
@@ -12,7 +11,6 @@ function Dashboard() {
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
   const [assignedUserFilter, setAssignedUserFilter] = useState("");
-
 
   useEffect(() => {
     const fetchIncidents = async () => {
@@ -97,14 +95,28 @@ function Dashboard() {
     }
   };
 
+  const statusLabels = {
+    open: "Open",
+    in_progress: "In Progress",
+    resolved: "Resolved"
+  };
+
   return (
-    <div className="p-6 bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-white">
-      <div className="bg-white dark:bg-gray-800 shadow-sm px-6 py-4 mb-6 flex justify-between items-center rounded">
-        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">🚨 Incident Management</h2>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white px-2 sm:px-6 md:px-12 py-6">
+      {/* Hero Heading */}
+      <div className="flex flex-col gap-1 mb-6">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Incident Dashboard</h2>
         </div>
+        <div className="h-0.5 w-32 bg-blue-100 dark:bg-gray-700 rounded-full mt-2 ml-12" />
+      </div>
 
-      {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>}
 
+      {/* Filters */}
       <div className="flex gap-3 flex-wrap mb-6">
         <input
           type="text"
@@ -148,108 +160,74 @@ function Dashboard() {
         </select>
       </div>
 
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto">
-          {Object.entries(groupedIncidents).map(([status, list]) => (
-            <Droppable droppableId={status} key={status}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="w-full max-w-md bg-gray-50 dark:bg-gray-800 rounded shadow-md p-4"
-                >
-                  <h3 className="text-lg font-bold text-center capitalize mb-4 text-gray-800 dark:text-white">
-                    {status.replace("_", " ")}
-                  </h3>
-                  {list.map((incident, index) => (
-                    <Draggable key={incident._id} draggableId={incident._id.toString()} index={index}>
-                      {(provided) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          className="bg-white dark:bg-gray-700 rounded shadow p-3 mb-3"
-                        >
-                          <div className="flex justify-between items-center">
-                            <strong>{incident.title}</strong>
-                            <span className={`text-white text-xs px-2 py-1 rounded ${getSeverityBadgeColor(incident.severity)}`}>
-                              {incident.severity}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2 mt-2 mb-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
-                              {incident.assignedTo?.email?.charAt(0).toUpperCase() || "?"}
+      {/* Kanban Board Card */}
+      <div className="overflow-x-auto rounded-2xl shadow-lg border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="flex gap-4 flex-col md:flex-row">
+            {Object.entries(groupedIncidents).map(([status, list]) => (
+              <Droppable droppableId={status} key={status}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`flex-1 min-w-[280px] max-w-sm bg-gray-50 dark:bg-gray-900 rounded-xl shadow p-3 transition-all border border-gray-200 dark:border-gray-700 ${snapshot.isDraggingOver ? "ring-2 ring-blue-400" : ""}`}
+                  >
+                    <h3 className="text-lg font-bold capitalize mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+                      <span className={`inline-block w-2.5 h-2.5 rounded-full ${status === "open" ? "bg-blue-400" : status === "in_progress" ? "bg-yellow-400" : "bg-green-500"}`}></span>
+                      {statusLabels[status]}
+                    </h3>
+                    {list.map((incident, index) => (
+                      <Draggable key={incident._id} draggableId={incident._id.toString()} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4 border border-gray-100 dark:border-gray-700 transition-all ${snapshot.isDragging ? "ring-2 ring-blue-400 scale-105" : "hover:shadow-lg"}`}
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <strong className="text-base font-semibold">{incident.title}</strong>
+                              <span className={`text-xs px-2 py-1 rounded-full font-semibold ${getSeverityBadgeColor(incident.severity)} text-white`}>{incident.severity}</span>
                             </div>
-                            <p className="text-xs text-gray-700 dark:text-gray-200">
-                              Assigned to: {incident.assignedTo?.email || "Unassigned"}
-                              {incident.assignedTo?.role === "admin" && <span className="text-yellow-400 ml-1">👑 Admin</span>}
-                            </p>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow border-2 border-white dark:border-gray-800">
+                                {incident.assignedTo?.email?.charAt(0).toUpperCase() || "?"}
+                              </div>
+                              <p className="text-xs text-gray-700 dark:text-gray-200">
+                                Assigned to: {incident.assignedTo?.email || "Unassigned"}
+                                {incident.assignedTo?.role === "admin" && <span className="text-yellow-400 ml-1">👑 Admin</span>}
+                              </p>
+                            </div>
+                            <select
+                              value={incident.assignedTo?._id || ""}
+                              onChange={(e) => handleAssign(incident._id, e.target.value)}
+                              className="w-full mt-1 mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white"
+                            >
+                              <option value="">Assign to...</option>
+                              {users.map((user) => (
+                                <option key={user._id} value={user._id}>
+                                  {user.email} {user.role === "admin" ? "👑" : ""}
+                                </option>
+                              ))}
+                            </select>
+                            <Link
+                              to={`/incidents/${incident._id}`}
+                              className="block text-blue-600 dark:text-blue-400 text-xs font-semibold mt-2 hover:underline"
+                            >
+                              View Details
+                            </Link>
                           </div>
-
-                          <select
-                            value={incident.assignedTo?._id || ""}
-                            onChange={(e) => handleAssign(incident._id, e.target.value)}
-                            className="w-full mt-1 mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white"
-                          >
-                            <option value="">Assign to...</option>
-                            {users.map((user) => (
-                              <option key={user._id} value={user._id}>
-                                {user.email} {user.role === "admin" ? "👑" : ""}
-                              </option>
-                            ))}
-                          </select>
-
-                          <form
-                            onSubmit={async (e) => {
-                              e.preventDefault();
-                              const commentText = e.target.elements.comment.value;
-                              try {
-                                await incidentApi.post(`/incidents/${incident._id}/comments`, {
-                                  message: commentText,
-                                });
-                                e.target.reset();
-                                const res = await incidentApi.get("/incidents");
-                                setIncidents(res.data);
-                              } catch (err) {
-                                alert("Failed to add comment");
-                              }
-                            }}
-                          >
-                            <input
-                              type="text"
-                              name="comment"
-                              placeholder="Add a comment"
-                              required
-                              className="w-full border px-2 py-1 mt-1 mb-2 rounded dark:bg-gray-800 dark:text-white"
-                            />
-                            <button type="submit" className="bg-blue-500 text-white px-3 py-1 text-sm rounded hover:bg-blue-600">
-                              Post
-                            </button>
-                          </form>
-
-                          <Link to={`/incidents/${incident._id}`} className="text-blue-600 dark:text-blue-300 text-sm hover:underline">
-                            View Details
-                          </Link>
-
-                          <ul className="mt-2 text-xs">
-                            {incident.comments?.map((c, idx) => (
-                              <li key={idx}>
-                                <strong>{c.user?.email || "User"}:</strong> {c.comment}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          ))}
-        </div>
-      </DragDropContext>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            ))}
+          </div>
+        </DragDropContext>
+      </div>
     </div>
   );
 }
