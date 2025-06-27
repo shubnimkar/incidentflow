@@ -1,7 +1,15 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Fragment } from "react";
 import { useParams } from "react-router-dom";
 import { incidentApi, userApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import axios from "axios";
+//import 'emoji-mart/dist/emoji-mart.css';
+import { FaRegEdit, FaTrashAlt } from 'react-icons/fa';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
+import { MdAdd } from 'react-icons/md';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 const statusOptions = [
   { value: "open", label: "Open" },
@@ -36,6 +44,36 @@ const IncidentDetails = () => {
   const [uploadError, setUploadError] = useState("");
   const [deletingAttachment, setDeletingAttachment] = useState("");
   const fileInputRef = useRef();
+  const [activity, setActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentText, setEditingCommentText] = useState("");
+  const [editingMentions, setEditingMentions] = useState([]);
+  const [usersForMentions, setUsersForMentions] = useState([]);
+  const [mentionDropdown, setMentionDropdown] = useState({ open: false, options: [], index: 0, anchor: null });
+  const [commentMentions, setCommentMentions] = useState([]);
+  const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
+  const [hoveredCommentId, setHoveredCommentId] = useState(null);
+  const [tooltip, setTooltip] = useState({ show: false, users: [], x: 0, y: 0 });
+  const emojiPickerRef = useRef(null);
+  const [confirmModal, setConfirmModal] = useState({ open: false, onConfirm: null, title: '', description: '' });
+  const [hoveredEmoji, setHoveredEmoji] = useState({ commentId: null, emoji: null, users: [] });
+
+  const fetchActivity = async () => {
+    setActivityLoading(true);
+    setActivityError("");
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/incidents/logs/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setActivity(res.data);
+    } catch (err) {
+      setActivityError("Failed to load activity feed");
+    } finally {
+      setActivityLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchIncident = async () => {
@@ -71,6 +109,42 @@ const IncidentDetails = () => {
     fetchUsers();
   }, [token]);
 
+  useEffect(() => {
+    fetchActivity();
+  }, [id, token]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await userApi.get("/", { headers: { Authorization: `Bearer ${token}` } });
+        setUsersForMentions(res.data);
+      } catch (err) {
+        // ignore
+      }
+    };
+    fetchUsers();
+  }, [token]);
+
+  useEffect(() => {
+    if (!showEmojiPickerFor) return;
+    function handleClickOutside(event) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPickerFor(null);
+      }
+    }
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        setShowEmojiPickerFor(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showEmojiPickerFor]);
+
   const canEdit = user?.role === "admin" || user?.email === incident?.createdBy?.email || user?.email === incident?.createdByEmail;
   const canDeleteAttachment = canEdit;
 
@@ -94,11 +168,38 @@ const IncidentDetails = () => {
       const res = await incidentApi.patch(`/incidents/${id}`, editFields, { headers: { Authorization: `Bearer ${token}` } });
       setIncident(res.data);
       setEditMode(false);
+      fetchActivity();
     } catch (err) {
       setError("Failed to update incident");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCommentInput = (e) => {
+    const value = e.target.value;
+    setCommentText(value);
+    const cursor = e.target.selectionStart;
+    const lastAt = value.lastIndexOf("@", cursor - 1);
+    if (lastAt !== -1 && (lastAt === 0 || /\s/.test(value[lastAt - 1]))) {
+      const query = value.slice(lastAt + 1, cursor).toLowerCase();
+      const options = usersForMentions.filter(u => u.email.toLowerCase().includes(query));
+      setMentionDropdown({ open: true, options, index: 0, anchor: lastAt });
+    } else {
+      setMentionDropdown({ open: false, options: [], index: 0, anchor: null });
+    }
+  };
+
+  const handleMentionSelect = (user) => {
+    const value = commentText;
+    const cursor = value.length;
+    const lastAt = value.lastIndexOf("@", cursor - 1);
+    const before = value.slice(0, lastAt + 1);
+    const after = value.slice(cursor);
+    const mentionText = user.email;
+    setCommentText(before + mentionText + " " + after);
+    setCommentMentions((prev) => [...prev, user._id]);
+    setMentionDropdown({ open: false, options: [], index: 0, anchor: null });
   };
 
   const handleCommentSubmit = async (e) => {
@@ -115,9 +216,11 @@ const IncidentDetails = () => {
       );
       setIncident(res.data);
       setCommentText("");
+      fetchActivity();
+      toast.success('Comment added!');
     } catch (err) {
       console.error("Error adding comment:", err);
-      alert("Failed to add comment.");
+      toast.error("Failed to add comment.");
     }
   };
 
@@ -127,6 +230,7 @@ const IncidentDetails = () => {
     try {
       const res = await incidentApi.patch(`/incidents/${id}/assign`, { assignedTo: userId }, { headers: { Authorization: `Bearer ${token}` } });
       setIncident(res.data);
+      fetchActivity();
     } catch (err) {
       setAssignError("Failed to assign user");
     } finally {
@@ -158,26 +262,95 @@ const IncidentDetails = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setIncident(res.data);
+      fetchActivity();
+      toast.success('Attachment uploaded!');
     } catch (err) {
       setUploadError("Failed to upload attachment");
+      toast.error("Failed to upload attachment");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handleDeleteAttachment = async (filename) => {
-    if (!window.confirm("Are you sure you want to delete this attachment?")) return;
-    setDeletingAttachment(filename);
+  const handleDeleteAttachment = (filename) => {
+    setConfirmModal({
+      open: true,
+      title: 'Delete Attachment',
+      description: 'Are you sure you want to delete this attachment?',
+      onConfirm: async () => {
+        setDeletingAttachment(filename);
+        try {
+          const res = await incidentApi.delete(`/incidents/${id}/attachments/${encodeURIComponent(filename)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setIncident(res.data);
+          fetchActivity();
+          toast.success('Attachment deleted!');
+        } catch (err) {
+          toast.error("Failed to delete attachment");
+        } finally {
+          setDeletingAttachment("");
+        }
+      }
+    });
+  };
+
+  const handleEditComment = (comment) => {
+    setEditingCommentId(comment._id);
+    setEditingCommentText(comment.message);
+    setEditingMentions(comment.mentions || []);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null);
+    setEditingCommentText("");
+    setEditingMentions([]);
+  };
+
+  const handleSaveEdit = async (commentId) => {
     try {
-      const res = await incidentApi.delete(`/incidents/${id}/attachments/${encodeURIComponent(filename)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await incidentApi.patch(`/incidents/${id}/comments/${commentId}`, {
+        message: editingCommentText,
+        mentions: editingMentions,
+      }, { headers: { Authorization: `Bearer ${token}` } });
       setIncident(res.data);
+      setEditingCommentId(null);
+      setEditingCommentText("");
+      setEditingMentions([]);
+      fetchActivity();
+      toast.success('Comment updated!');
     } catch (err) {
-      alert("Failed to delete attachment");
-    } finally {
-      setDeletingAttachment("");
+      toast.error("Failed to edit comment");
+    }
+  };
+
+  const handleDeleteComment = (commentId) => {
+    setConfirmModal({
+      open: true,
+      title: 'Delete Comment',
+      description: 'Are you sure you want to delete this comment?',
+      onConfirm: async () => {
+        try {
+          const res = await incidentApi.delete(`/incidents/${id}/comments/${commentId}`, { headers: { Authorization: `Bearer ${token}` } });
+          setIncident(res.data);
+          fetchActivity();
+          toast.success('Comment deleted!');
+        } catch (err) {
+          toast.error("Failed to delete comment");
+        }
+      }
+    });
+  };
+
+  const handleReact = async (commentId, emoji) => {
+    try {
+      const res = await incidentApi.patch(`/incidents/${id}/comments/${commentId}/reactions`, { emoji }, { headers: { Authorization: `Bearer ${token}` } });
+      setIncident(res.data);
+      fetchActivity();
+      toast.success('Reaction updated!');
+    } catch (err) {
+      toast.error("Failed to react to comment");
     }
   };
 
@@ -347,35 +520,191 @@ const IncidentDetails = () => {
               <p className="text-gray-500 dark:text-gray-400">No comments yet.</p>
             ) : (
               <ul className="space-y-3">
-                {[...incident.comments].reverse().map((c, i) => (
-                  <li key={i} className="flex gap-3 items-start border p-3 rounded-xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
-                    <div className="w-9 h-9 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800 mt-1">
-                      {getInitials(c.user?.email)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                          {c.user?.email || "Unknown User"}
-                          {c.user?.role && (
-                            <em className="text-xs text-gray-500 dark:text-gray-300 ml-1">({c.user.role})</em>
-                          )}
-                        </span>
-                        <span className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleString()}</span>
+                {[...incident.comments].reverse().map((c, i) => {
+                  const canEditComment = String(user?.id) === String(c.user?._id);
+                  const canDeleteComment = user?.role === "admin";
+                  const mentionsInComment = (c.mentions || []).map(mid => usersForMentions.find(u => u._id === mid));
+                  const usedEmojis = Array.from(new Set((c.reactions || []).map(r => r.emoji)));
+                  console.log('Current user:', user?.id, 'Comment user:', c.user?._id, 'Can edit:', canEditComment);
+                  console.log('Comment reactions:', c.reactions, 'usersForMentions:', usersForMentions);
+                  return (
+                    <li
+                      key={i}
+                      className="flex gap-3 items-start border p-3 rounded-xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 group relative hover:shadow-md transition-shadow"
+                      onMouseEnter={() => setHoveredCommentId(c._id)}
+                      onMouseLeave={() => setHoveredCommentId(null)}
+                    >
+                      <div className="w-9 h-9 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800 mt-1">
+                        {getInitials(c.user?.email)}
                       </div>
-                      <p className="text-gray-800 dark:text-gray-100 mt-1">{c.message}</p>
-                    </div>
-                  </li>
-                ))}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                            {c.user?.name || c.user?.email || "Unknown User"}
+                            {c.user?.role && (
+                              <em className="text-xs text-gray-500 dark:text-gray-300 ml-1">({c.user.role})</em>
+                            )}
+                          </span>
+                          <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(c.createdAt).toLocaleString()}</span>
+                        </div>
+                        {editingCommentId === c._id ? (
+                          <div className="flex flex-col gap-2 mt-1 border-2 border-blue-400 bg-blue-50 dark:bg-blue-900 rounded-lg p-2">
+                            <textarea
+                              className="w-full border rounded-lg p-2 dark:bg-gray-800 dark:text-white min-h-[60px] focus:ring-2 focus:ring-blue-400"
+                              value={editingCommentText}
+                              onChange={e => setEditingCommentText(e.target.value)}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <button onClick={() => handleSaveEdit(c._id)} className="px-3 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition">Save</button>
+                              <button onClick={handleCancelEdit} className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300 transition">Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Fragment>
+                            <p className="text-gray-800 dark:text-gray-100 mt-1 break-words">
+                              {c.message.split(/(@[\w.-]+)/g).map((part, idx) => {
+                                if (part.startsWith("@")) {
+                                  const mentioned = mentionsInComment.find(u => u && ("@" + u.email) === part);
+                                  return mentioned ? (
+                                    <span key={idx} className="bg-blue-100 text-blue-700 px-1 rounded">{part}</span>
+                                  ) : part;
+                                }
+                                return part;
+                              })}
+                              {c.edited && <span className="ml-2 text-xs text-gray-400">(edited)</span>}
+                            </p>
+                            {mentionsInComment.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {mentionsInComment.map((u, idx) => u && <span key={idx} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">@{u.name || u.email}</span>)}
+                              </div>
+                            )}
+                          </Fragment>
+                        )}
+                        {/* Reactions Row */}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap relative">
+                          <div className="flex gap-1 items-center">
+                            {usedEmojis.map(emoji => {
+                              const count = c.reactions ? c.reactions.filter(r => r.emoji === emoji).length : 0;
+                              const reacted = c.reactions ? c.reactions.some(r => r.emoji === emoji && r.user === user?.id) : false;
+                              const users = (c.reactions || [])
+                                .filter(r => r.emoji === emoji)
+                                .map(r => {
+                                  const u = usersForMentions.find(u => String(u._id) === String(r.user));
+                                  return u?.name || u?.email;
+                                })
+                                .filter(Boolean);
+                              return (
+                                <span key={emoji} className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReact(c._id, emoji)}
+                                    onMouseEnter={() => setHoveredEmoji({ commentId: c._id, emoji, users })}
+                                    onMouseLeave={() => setHoveredEmoji({ commentId: null, emoji: null, users: [] })}
+                                    className={`px-2 py-1 rounded-full text-lg font-semibold transition-all duration-150 border border-transparent hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${reacted ? "bg-blue-200" : "bg-gray-100 dark:bg-gray-800"}`}
+                                  >
+                                    {emoji} {count > 0 && <span className="text-xs font-bold">{count}</span>}
+                                  </button>
+                                  {/* Tooltip for emoji users, shown below the emoji */}
+                                  {hoveredEmoji.commentId === c._id && hoveredEmoji.emoji === emoji && hoveredEmoji.users.length > 0 && (
+                                    <div
+                                      className="absolute left-1/2 -translate-x-1/2 mt-2 bg-black text-white text-xs rounded px-2 py-1 z-30 whitespace-nowrap shadow-lg"
+                                      style={{ top: '2.2em' }}
+                                    >
+                                      {hoveredEmoji.users.join(", ")}
+                                    </div>
+                                  )}
+                                </span>
+                              );
+                            })}
+                            {/* Plus button for emoji picker, only on hover */}
+                            {hoveredCommentId === c._id && (
+                              <button
+                                type="button"
+                                onClick={() => setShowEmojiPickerFor(c._id)}
+                                className="ml-1 w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-tr from-blue-500 to-blue-400 text-white shadow-md hover:scale-110 hover:from-blue-600 hover:to-blue-500 transition-all duration-150 border-0 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                title="Add Reaction"
+                              >
+                                <MdAdd size={24} />
+                              </button>
+                            )}
+                            {showEmojiPickerFor === c._id && (
+                              <div
+                                className="absolute z-20 mt-2 animate-emoji-fade-scale max-w-[90vw] sm:max-w-xs"
+                                ref={emojiPickerRef}
+                                style={{ minWidth: 280 }}
+                              >
+                                <Picker
+                                  data={data}
+                                  onEmojiSelect={emoji => {
+                                    setShowEmojiPickerFor(null);
+                                    handleReact(c._id, emoji.native);
+                                  }}
+                                  theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                                  previewPosition="none"
+                                  skinTonePosition="none"
+                                />
+                              </div>
+                            )}
+                          </div>
+                          {/* Edit/Delete controls, only on hover and at far right */}
+                          {(canEditComment || canDeleteComment) && editingCommentId !== c._id && hoveredCommentId === c._id && (
+                            <div className="flex gap-1 ml-auto">
+                              {canEditComment && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditComment(c)}
+                                  className="p-1 rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-all duration-150 border border-transparent hover:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                  title="Edit"
+                                >
+                                  <FaRegEdit />
+                                </button>
+                              )}
+                              {canDeleteComment && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteComment(c._id)}
+                                  className="p-1 rounded-full bg-red-100 text-red-800 hover:bg-red-200 transition-all duration-150 border border-transparent hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                                  title="Delete"
+                                >
+                                  <FaTrashAlt />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
-            <form onSubmit={handleCommentSubmit} className="mt-4 flex gap-2">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment"
-                className="flex-1 border p-2 rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600"
-              />
+            <form onSubmit={handleCommentSubmit} className="mt-4 flex gap-2 relative">
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={handleCommentInput}
+                  placeholder="Add a comment"
+                  className="flex-1 border p-2 rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
+                  ref={fileInputRef}
+                />
+                {mentionDropdown.open && mentionDropdown.options.length > 0 && (
+                  <ul
+                    className="absolute left-0 top-full mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow z-50 max-h-48 overflow-y-auto animate-emoji-fade-scale"
+                    style={{ minWidth: 180 }}
+                  >
+                    {mentionDropdown.options.map((u, idx) => (
+                      <li
+                        key={u._id}
+                        className={`px-3 py-2 cursor-pointer text-sm hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors ${mentionDropdown.index === idx ? "bg-blue-50 dark:bg-blue-900" : ""}`}
+                        onClick={() => handleMentionSelect(u)}
+                      >
+                        @{u.name || u.email}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <button
                 type="submit"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
@@ -387,19 +716,17 @@ const IncidentDetails = () => {
           {/* Attachments Section */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border border-gray-200 dark:border-gray-700 mb-2">
             <h3 className="text-lg font-semibold mb-2">Attachments</h3>
-            {canEdit && (
-              <div className="mb-4 flex items-center gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleAttachmentUpload}
-                  className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  disabled={uploading}
-                />
-                {uploading && <span className="text-xs text-blue-600">Uploading...</span>}
-                {uploadError && <span className="text-xs text-red-600">{uploadError}</span>}
-              </div>
-            )}
+            <div className="mb-4 flex items-center gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAttachmentUpload}
+                className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                disabled={uploading}
+              />
+              {uploading && <span className="text-xs text-blue-600">Uploading...</span>}
+              {uploadError && <span className="text-xs text-red-600">{uploadError}</span>}
+            </div>
             {incident.attachments && incident.attachments.length > 0 ? (
               <ul className="space-y-2">
                 {incident.attachments.map((att, i) => {
@@ -440,8 +767,61 @@ const IncidentDetails = () => {
               <p className="text-gray-500 dark:text-gray-400">No attachments yet.</p>
             )}
           </div>
+          {/* Activity Feed / Timeline */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border border-gray-200 dark:border-gray-700 mt-4">
+            <h3 className="text-lg font-semibold mb-2">Activity Feed</h3>
+            {activityLoading ? (
+              <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+            ) : activityError ? (
+              <p className="text-red-500 dark:text-red-400">{activityError}</p>
+            ) : activity.length > 0 ? (
+              <ul className="space-y-4">
+                {activity.map((a, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                      {/* Icon based on action type */}
+                      {a.action.includes('status') ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      ) : a.action.includes('assign') ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V3" /></svg>
+                      ) : a.action.includes('edit') || a.action.includes('update') ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h18" /></svg>
+                      ) : a.action.includes('comment') ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8h2a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V10a2 2 0 012-2h2m4-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
+                      ) : a.action.includes('attachment') ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l7.07-7.07a4 4 0 00-5.656-5.657l-7.07 7.07a6 6 0 108.485 8.485l7.071-7.07" /></svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /></svg>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">{a.performedBy?.email || 'System'}</span>
+                        <span className="text-xs text-gray-400">{new Date(a.timestamp).toLocaleString()}</span>
+                      </div>
+                      <div className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">
+                        {a.action}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400">No activity yet.</p>
+            )}
+          </div>
         </div>
       </div>
+      <ConfirmModal
+        open={confirmModal.open}
+        onClose={() => setConfirmModal({ ...confirmModal, open: false })}
+        onConfirm={async () => {
+          if (confirmModal.onConfirm) await confirmModal.onConfirm();
+          setConfirmModal({ ...confirmModal, open: false });
+        }}
+        title={confirmModal.title}
+        description={confirmModal.description}
+      />
     </div>
   );
 };

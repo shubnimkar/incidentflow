@@ -14,11 +14,8 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 
-// ✅ Admin-protected routes
-router.use(authenticateToken, authorizeAdmin);
-
-// ✅ Get all users (admin only)
-router.get("/", async (req, res) => {
+// ✅ Get all users (authenticated only)
+router.get("/", authenticateToken, async (req, res) => {
   try {
     const users = await User.find().select("-password");
     res.json(users);
@@ -27,6 +24,9 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+// ✅ Admin-protected routes
+router.use(authenticateToken, authorizeAdmin);
 
 // ✅ Change user role (admin only)
 router.patch("/:id/role", async (req, res) => {
