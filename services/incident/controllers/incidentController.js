@@ -88,6 +88,9 @@ const assignIncident = async (req, res) => {
       { new: true }
     ).populate("assignedTo", "email");
 
+    // Log audit
+    await logAudit("assigned incident", req.user.id, id);
+
     res.status(200).json(incident);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -104,6 +107,9 @@ updateIncident = async (req, res) => {
     if (!updatedIncident) {
       return res.status(404).json({ message: "Incident not found" });
     }
+
+    // Log audit
+    await logAudit("updated incident", req.user.id, id);
 
     res.json(updatedIncident);
   } catch (err) {
@@ -128,6 +134,9 @@ const addComment = async (req, res) => {
 
     incident.comments.push({ user: userId, message }); // ✅ Change this
     await incident.save();
+
+    // Log audit
+    await logAudit("added comment", userId, incidentId);
 
     const updatedIncident = await Incident.findById(incidentId)
       .populate("createdBy", "email")
@@ -171,6 +180,8 @@ const uploadAttachment = async (req, res) => {
       uploadedAt: new Date(),
     });
     await incident.save();
+    // Log audit
+    await logAudit("uploaded attachment", req.user.id, req.params.id);
     const updatedIncident = await Incident.findById(req.params.id)
       .populate("createdBy", "email")
       .populate("assignedTo", "email")
@@ -183,4 +194,97 @@ const uploadAttachment = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment };
+// Helper to create audit log
+async function logAudit(action, userId, incidentId) {
+  await AuditLog.create({ action, performedBy: userId, incident: incidentId });
+}
+
+// Edit a comment
+const editComment = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const { message, mentions } = req.body;
+    const userId = req.user.id;
+    const incident = await Incident.findById(id);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+    const comment = incident.comments.id(commentId);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+    if (String(comment.user) !== String(userId) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Not authorized to edit this comment" });
+    }
+    comment.message = message;
+    comment.mentions = mentions || [];
+    comment.edited = true;
+    comment.editedAt = new Date();
+    await incident.save();
+    const updatedIncident = await Incident.findById(id)
+      .populate("createdBy", "email")
+      .populate("assignedTo", "email")
+      .populate("comments.user", "email role")
+      .populate("comments.mentions", "email")
+      .populate("attachments.uploadedBy", "email");
+    res.json(updatedIncident);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to edit comment" });
+  }
+};
+
+// Delete a comment
+const deleteComment = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const userId = req.user.id;
+    const incident = await Incident.findById(id);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+    const comment = incident.comments.id(commentId);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+    if (String(comment.user) !== String(userId) && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Not authorized to delete this comment" });
+    }
+    incident.comments.pull(commentId);
+    await incident.save();
+    const updatedIncident = await Incident.findById(id)
+      .populate("createdBy", "email")
+      .populate("assignedTo", "email")
+      .populate("comments.user", "email role")
+      .populate("comments.mentions", "email")
+      .populate("attachments.uploadedBy", "email");
+    res.json(updatedIncident);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete comment" });
+  }
+};
+
+// React to a comment (add or remove reaction)
+const reactToComment = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.user.id;
+    const incident = await Incident.findById(id);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+    const comment = incident.comments.id(commentId);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+    // Remove reaction if already exists, else add
+    const existing = comment.reactions.find(r => r.emoji === emoji && String(r.user) === String(userId));
+    if (existing) {
+      comment.reactions = comment.reactions.filter(r => !(r.emoji === emoji && String(r.user) === String(userId)));
+    } else {
+      comment.reactions.push({ emoji, user: userId });
+    }
+    // Debug log
+    console.log('User', userId, 'toggled reaction', emoji, 'Current reactions:', comment.reactions);
+    await incident.save();
+    const updatedIncident = await Incident.findById(id)
+      .populate("createdBy", "email")
+      .populate("assignedTo", "email")
+      .populate("comments.user", "email role")
+      .populate("comments.mentions", "email")
+      .populate("attachments.uploadedBy", "email");
+    res.json(updatedIncident);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to react to comment" });
+  }
+};
+
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment };

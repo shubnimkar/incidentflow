@@ -6,8 +6,8 @@ const JWT_SECRET = process.env.JWT_SECRET; // use env vars in production
 
 exports.register = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = new User({ email, password });
+    const { name, email, password } = req.body;
+    const user = new User({ name, email, password });
     await user.save();
     res.status(201).json({ message: "User registered" });
   } catch (err) {

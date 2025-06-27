@@ -14,7 +14,14 @@ const commentSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-  }
+  },
+  mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  reactions: [{
+    emoji: { type: String, required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  }],
+  edited: { type: Boolean, default: false },
+  editedAt: { type: Date },
 });
 
 const attachmentSchema = new mongoose.Schema({
