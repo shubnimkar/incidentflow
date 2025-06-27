@@ -22,8 +22,8 @@ function App() {
 
   return (
     <DarkModeProvider>
+      <Toaster position="top-right" />
       <Router>
-          <Toaster position="top-right" reverseOrder={false} />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Login />} />
