@@ -17,6 +17,7 @@ import AuthCallback from "./pages/AuthCallback";
 import { Toaster } from "react-hot-toast";
 import OnCallSchedule from "./pages/OnCallSchedule";
 import OnCallTimeline from "./components/OnCallTimeline";
+import CompleteProfile from "./pages/CompleteProfile";
 
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/auth-callback" element={<AuthCallback />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
           
 
           {/* Protected Layout Wrapper */}

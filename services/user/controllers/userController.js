@@ -59,3 +59,21 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ message: "Server error while deleting user." });
   }
 };
+
+exports.updateMe = async (req, res) => {
+  try {
+    const updates = {};
+    if (req.body.name) updates.name = req.body.name;
+    if (req.file) {
+      updates.avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    }
+    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'Profile updated', user });
+  } catch (err) {
+    console.error('Failed to update profile:', err);
+    res.status(500).json({ message: 'Failed to update profile' });
+  }
+};
