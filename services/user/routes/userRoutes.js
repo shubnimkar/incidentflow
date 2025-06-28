@@ -3,12 +3,27 @@ const {
   register,
   login,
   deleteUser,
+  updateMe,
 } = require("../controllers/userController");
+const multer = require('multer');
+const path = require('path');
 
 const User = require("../models/User");
 const { authenticateToken, authorizeAdmin } = require("../middleware/auth");
 
 const router = express.Router();
+
+// Multer config for avatar uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../../uploads/avatars'));
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, `${req.user.id}-${Date.now()}${ext}`);
+  }
+});
+const upload = multer({ storage });
 
 // ✅ Public routes
 router.post("/register", register);
@@ -26,7 +41,6 @@ router.get("/", authenticateToken, async (req, res) => {
 });
 
 // ✅ Admin-protected routes
-router.use(authenticateToken, authorizeAdmin);
 
 // ✅ Change user role (admin only)
 router.patch("/:id/role", async (req, res) => {
@@ -56,5 +70,11 @@ router.patch("/:id/role", async (req, res) => {
 
 // ✅ Delete user (admin only)
 router.delete("/:id", deleteUser);
+
+// ✅ Update current user's profile (name, avatar)
+router.patch("/me", authenticateToken, upload.single('avatar'), updateMe);
+
+router.use(authenticateToken, authorizeAdmin);
+
 
 module.exports = router;

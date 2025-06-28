@@ -13,25 +13,28 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     callbackURL: "/api/auth/google/callback"
   }, async (accessToken, refreshToken, profile, done) => {
     try {
-      // Check if user already exists
       let user = await User.findOne({ googleId: profile.id });
-      
       if (user) {
         return done(null, user);
       }
-
       // Check if user exists with same email
       user = await User.findOne({ email: profile.emails[0].value });
-      
       if (user) {
+        // If user already has a different SSO provider or local, do not link automatically
+        if (user.ssoProvider && user.ssoProvider !== 'google') {
+          return done({ message: 'account_exists' }, null);
+        }
         // Link existing account to Google
         user.googleId = profile.id;
         user.ssoProvider = 'google';
-        user.isEmailVerified = true; // Google emails are verified
+        user.isEmailVerified = true;
+        // Only set name/avatar if missing
+        if (!user.name && profile.displayName) user.name = profile.displayName;
+        if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
+        console.log('[Google SSO] Linking to existing user:', { id: user._id, name: user.name, avatarUrl: user.avatarUrl });
         await user.save();
         return done(null, user);
       }
-
       // Create new user
       const newUser = new User({
         googleId: profile.id,
@@ -42,7 +45,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         isEmailVerified: true,
         role: 'responder'
       });
-
+      console.log('[Google SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
       await newUser.save();
       return done(null, newUser);
     } catch (error) {
@@ -63,21 +66,24 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
   }, async (accessToken, refreshToken, profile, done) => {
     try {
       let user = await User.findOne({ githubId: profile.id });
-      
       if (user) {
         return done(null, user);
       }
-
       user = await User.findOne({ email: profile.emails[0]?.value });
-      
       if (user) {
+        if (user.ssoProvider && user.ssoProvider !== 'github') {
+          return done({ message: 'account_exists' }, null);
+        }
         user.githubId = profile.id;
         user.ssoProvider = 'github';
         user.isEmailVerified = true;
+        // Only set name/avatar if missing
+        if (!user.name && (profile.displayName || profile.username)) user.name = profile.displayName || profile.username;
+        if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
+        console.log('[GitHub SSO] Linking to existing user:', { id: user._id, name: user.name, avatarUrl: user.avatarUrl });
         await user.save();
         return done(null, user);
       }
-
       const newUser = new User({
         githubId: profile.id,
         name: profile.displayName || profile.username,
@@ -87,7 +93,7 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
         isEmailVerified: true,
         role: 'responder'
       });
-
+      console.log('[GitHub SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
       await newUser.save();
       return done(null, newUser);
     } catch (error) {
@@ -108,31 +114,33 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
     scope: ['user.read', 'email']
   }, async (accessToken, refreshToken, profile, done) => {
     try {
-      // Robust email extraction
       const email =
         (profile.emails && profile.emails[0] && profile.emails[0].value) ||
         (profile._json && profile._json.mail) ||
         (profile._json && profile._json.userPrincipalName) ||
         null;
-
       if (!email) {
         return done(new Error('No email found in Microsoft profile'), null);
       }
-
       let user = await User.findOne({ microsoftId: profile.id });
       if (user) {
         return done(null, user);
       }
-
       user = await User.findOne({ email });
       if (user) {
+        if (user.ssoProvider && user.ssoProvider !== 'microsoft') {
+          return done({ message: 'account_exists' }, null);
+        }
         user.microsoftId = profile.id;
         user.ssoProvider = 'microsoft';
         user.isEmailVerified = true;
+        // Only set name/avatar if missing
+        if (!user.name && profile.displayName) user.name = profile.displayName;
+        if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
+        console.log('[Microsoft SSO] Linking to existing user:', { id: user._id, name: user.name, avatarUrl: user.avatarUrl });
         await user.save();
         return done(null, user);
       }
-
       const newUser = new User({
         microsoftId: profile.id,
         name: profile.displayName,
@@ -142,7 +150,7 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
         isEmailVerified: true,
         role: 'responder'
       });
-
+      console.log('[Microsoft SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
       await newUser.save();
       return done(null, newUser);
     } catch (error) {
