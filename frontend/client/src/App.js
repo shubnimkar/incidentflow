@@ -12,6 +12,8 @@ import { DarkModeProvider } from "./context/DarkModeContext";
 import { getCurrentUser } from "./utils/auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
+import AuthCallback from "./pages/AuthCallback";
 import { Toaster } from "react-hot-toast";
 import OnCallSchedule from "./pages/OnCallSchedule";
 import OnCallTimeline from "./components/OnCallTimeline";
@@ -27,9 +29,12 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/auth-callback" element={<AuthCallback />} />
           
 
           {/* Protected Layout Wrapper */}
