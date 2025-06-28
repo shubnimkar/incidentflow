@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../context/AuthContext";
 import { Eye, EyeOff } from "lucide-react";
-import { FaGoogle, FaGithub, FaMicrosoft } from 'react-icons/fa';
+import { FaGoogle, FaGithub, FaMicrosoft, FaSpinner } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
 function Login() {
@@ -13,6 +13,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState("");
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -46,6 +47,7 @@ function Login() {
   };
 
   const handleSSO = (provider) => {
+    setSsoLoading(provider);
     const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
     window.location.href = `${baseUrl}/api/auth/${provider}`;
   };
@@ -70,26 +72,36 @@ function Login() {
           <div className="space-y-3 mb-6">
             <button
               onClick={() => handleSSO('google')}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 py-3 px-4 rounded-lg font-medium transition-colors"
+              disabled={!!ssoLoading}
+              aria-label="Sign in with Google"
+              className={`w-full flex items-center justify-center gap-3 border py-3 px-4 rounded-lg font-medium transition-colors
+                ${ssoLoading === 'google' ? 'opacity-70 cursor-not-allowed' : 'bg-white hover:bg-[#f7fafc] text-gray-700 border-gray-300'}
+                focus:outline-none focus:ring-2 focus:ring-[#4285F4]`}
             >
-              <FaGoogle className="text-red-500" />
-              Continue with Google
+              <FaGoogle className="text-[#EA4335]" />
+              {ssoLoading === 'google' ? <FaSpinner className="animate-spin" /> : 'Continue with Google'}
             </button>
-            
             <button
               onClick={() => handleSSO('github')}
-              className="w-full flex items-center justify-center gap-3 bg-gray-900 hover:bg-gray-800 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+              disabled={!!ssoLoading}
+              aria-label="Sign in with GitHub"
+              className={`w-full flex items-center justify-center gap-3 border py-3 px-4 rounded-lg font-medium transition-colors
+                ${ssoLoading === 'github' ? 'opacity-70 cursor-not-allowed' : 'bg-[#24292F] hover:bg-[#1b1f23] text-white border-gray-800'}
+                focus:outline-none focus:ring-2 focus:ring-[#24292F]`}
             >
               <FaGithub />
-              Continue with GitHub
+              {ssoLoading === 'github' ? <FaSpinner className="animate-spin" /> : 'Continue with GitHub'}
             </button>
-            
             <button
               onClick={() => handleSSO('microsoft')}
-              className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+              disabled={!!ssoLoading}
+              aria-label="Sign in with Microsoft"
+              className={`w-full flex items-center justify-center gap-3 border py-3 px-4 rounded-lg font-medium transition-colors
+                ${ssoLoading === 'microsoft' ? 'opacity-70 cursor-not-allowed' : 'bg-[#2F2F2F] hover:bg-[#0078D4] text-white border-gray-800'}
+                focus:outline-none focus:ring-2 focus:ring-[#0078D4]`}
             >
-              <FaMicrosoft />
-              Continue with Microsoft
+              <FaMicrosoft className="text-[#F25022]" />
+              {ssoLoading === 'microsoft' ? <FaSpinner className="animate-spin" /> : 'Continue with Microsoft'}
             </button>
           </div>
 
