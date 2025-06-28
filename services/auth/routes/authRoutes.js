@@ -1,72 +1,139 @@
 const express = require("express");
 const router = express.Router();
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const passport = require('passport');
+const jwt = require('jsonwebtoken');
+const { 
+  register, 
+  login, 
+  verifyEmail, 
+  resendVerification, 
+  forgotPassword, 
+  resetPassword, 
+  getCurrentUser 
+} = require("../controllers/authController");
+const authMiddleware = require("../middleware/authMiddleware");
 
-const { register, login } = require("../controllers/authController");
-const User = require("../models/User");
-const sendEmail = require("../utils/sendEmail");
+// Test route to verify routing is working
+router.get("/test", (req, res) => {
+  res.json({ message: "Auth routes are working!" });
+});
 
 // REGISTER & LOGIN
 router.post("/register", register);
 router.post("/login", login);
 
-// ✅ Forgot Password Route
-router.post("/forgot-password", async (req, res) => {
-  const { email } = req.body;
+// EMAIL VERIFICATION
+router.get("/verify-email/:token", verifyEmail);
+router.post("/resend-verification", resendVerification);
 
-  try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      // ✅ For security: don't reveal whether email exists
-      return res.status(200).json({
-        message: "Password reset link sent to your email (if registered).",
-      });
-    }
+// PASSWORD RESET
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "15m",
+// GET CURRENT USER (protected)
+router.get("/me", authMiddleware, getCurrentUser);
+
+// SSO ROUTES
+// Google OAuth
+router.get("/google", (req, res, next) => {
+  console.log("Google OAuth route hit");
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(500).json({ 
+      message: "Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables." 
     });
-
-    const resetLink = `http://localhost:3000/reset-password/${token}`;
-    const emailHTML = `
-      <p>Hello ${user.name || "User"},</p>
-      <p>You requested a password reset. Click the link below to reset your password:</p>
-      <a href="${resetLink}">${resetLink}</a>
-      <p>This link will expire in 15 minutes.</p>
-    `;
-
-    await sendEmail(user.email, "Reset Your Password", emailHTML);
-
-    res.status(200).json({
-      message: "Password reset link sent to your email (if registered).",
-    });
-  } catch (err) {
-    console.error("Forgot Password Error:", err);
-    res.status(500).json({ message: "Something went wrong." });
   }
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
 
-// ✅ Reset Password Route
-router.post("/reset-password/:token", async (req, res) => {
-  const { token } = req.params;
-  const { password } = req.body;
+router.get("/google/callback", (req, res, next) => {
+  console.log("Google OAuth callback route hit");
+  passport.authenticate("google", { session: false }, (err, user, info) => {
+    if (err) {
+      console.error("Google OAuth error:", err);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?error=oauth_failed`);
+    }
+    if (!user) {
+      console.error("Google OAuth: No user returned");
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?error=no_user`);
+    }
+    
+    const token = jwt.sign({ 
+      id: user._id, 
+      role: user.role,
+      email: user.email,
+      name: user.name
+    }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?token=${token}`);
+  })(req, res, next);
+});
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ message: "User not found." });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user.password = hashedPassword;
-    await user.save();
-
-    res.status(200).json({ message: "Password reset successful. You can now log in." });
-  } catch (err) {
-    console.error("Reset Password Error:", err);
-    res.status(400).json({ message: "Invalid or expired token." });
+// GitHub OAuth
+router.get("/github", (req, res, next) => {
+  console.log("GitHub OAuth route hit");
+  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+    return res.status(500).json({ 
+      message: "GitHub OAuth not configured. Please set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET environment variables." 
+    });
   }
+  passport.authenticate("github", { scope: ["user:email"] })(req, res, next);
+});
+
+router.get("/github/callback", (req, res, next) => {
+  console.log("GitHub OAuth callback route hit");
+  passport.authenticate("github", { session: false }, (err, user, info) => {
+    if (err) {
+      console.error("GitHub OAuth error:", err);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?error=oauth_failed`);
+    }
+    if (!user) {
+      console.error("GitHub OAuth: No user returned");
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?error=no_user`);
+    }
+    
+    const token = jwt.sign({ 
+      id: user._id, 
+      role: user.role,
+      email: user.email,
+      name: user.name
+    }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?token=${token}`);
+  })(req, res, next);
+});
+
+// Microsoft OAuth
+router.get("/microsoft", (req, res, next) => {
+  console.log("Microsoft OAuth route hit");
+  if (!process.env.MICROSOFT_CLIENT_ID || !process.env.MICROSOFT_CLIENT_SECRET) {
+    return res.status(500).json({ 
+      message: "Microsoft OAuth not configured. Please set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET environment variables." 
+    });
+  }
+  passport.authenticate("microsoft", { scope: ["user.read"] })(req, res, next);
+});
+
+router.get("/microsoft/callback", (req, res, next) => {
+  console.log("Microsoft OAuth callback route hit");
+  passport.authenticate("microsoft", { session: false }, (err, user, info) => {
+    if (err) {
+      console.error("Microsoft OAuth error:", err);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?error=oauth_failed`);
+    }
+    if (!user) {
+      console.error("Microsoft OAuth: No user returned");
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?error=no_user`);
+    }
+    
+    const token = jwt.sign({ 
+      id: user._id, 
+      role: user.role,
+      email: user.email,
+      name: user.name
+    }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?token=${token}`);
+  })(req, res, next);
 });
 
 module.exports = router;
