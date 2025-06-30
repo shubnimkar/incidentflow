@@ -35,16 +35,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaPlusCircle />,
     },
     {
-    label: "On-Call Schedules",
-    path: "/oncall-schedule",
-    icon: <FaClock />,
-    },
-    {
-    label: "On-Call Calendar",
-    path: "/oncall-timeline",
-    icon: <FaCalendarAlt />,
-    },
-    {
       label: "Admin Panel",
       path: "/admin",
       icon: <FaUsersCog />,
