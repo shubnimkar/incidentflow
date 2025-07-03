@@ -124,6 +124,45 @@ const emailTemplates = {
       </div>
     </body>
     </html>
+  `,
+
+  incidentNotification: (userName, incidentTitle, incidentId, action, url) => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Incident Notification - IncidentFlow</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #007bff 0%, #00c6ff 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🚨 IncidentFlow</h1>
+          <p>Incident Notification</p>
+        </div>
+        <div class="content">
+          <h2>Hi ${userName || 'there'}!</h2>
+          <p>The incident <strong>${incidentTitle}</strong> (ID: ${incidentId}) has been <strong>${action}</strong> and you are assigned to it.</p>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${url}" class="button">View Incident</a>
+          </p>
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; color: #007bff;">${url}</p>
+        </div>
+        <div class="footer">
+          <p>© 2024 IncidentFlow. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
   `
 };
 

@@ -61,6 +61,17 @@ const incidentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    // Add tags for flexible categorization
+    tags: [{ type: String }],
+    // Add team assignment (reference to Team model)
+    team: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+    },
+    // Add category for incident type
+    category: {
+      type: String,
+    },
     comments: [commentSchema],
     attachments: [attachmentSchema],
   },

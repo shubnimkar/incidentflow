@@ -7,6 +7,7 @@ const {
 } = require("../controllers/userController");
 const multer = require('multer');
 const path = require('path');
+const teamController = require("../controllers/teamController");
 
 const User = require("../models/User");
 const { authenticateToken, authorizeAdmin } = require("../middleware/auth");
@@ -61,5 +62,13 @@ router.delete("/:id", deleteUser);
 
 router.use(authenticateToken, authorizeAdmin);
 
+// Team management routes
+router.post("/teams", teamController.createTeam);
+router.get("/teams", teamController.getTeams);
+router.get("/teams/:id", teamController.getTeamById);
+router.put("/teams/:id", teamController.updateTeam);
+router.delete("/teams/:id", teamController.deleteTeam);
+router.post("/teams/:id/add-member", teamController.addMember);
+router.post("/teams/:id/remove-member", teamController.removeMember);
 
 module.exports = router;

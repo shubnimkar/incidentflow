@@ -3,6 +3,7 @@ import axios from "axios";
 import { X, Search } from "lucide-react";
 import { toast } from "react-hot-toast";
 import * as Dialog from "@radix-ui/react-dialog";
+import { userApi, onCallApi } from "../services/api";
 
 // Utility Functions
 const getInitials = (nameOrEmail) => {
@@ -30,6 +31,23 @@ const AdminPanel = () => {
   const [modalType, setModalType] = useState(""); // "delete" or "role"
   const [search, setSearch] = useState("");
   const token = localStorage.getItem("token");
+  const [teams, setTeams] = useState([]);
+  const [teamName, setTeamName] = useState("");
+  const [teamDesc, setTeamDesc] = useState("");
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [teamError, setTeamError] = useState("");
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [teamSearch, setTeamSearch] = useState("");
+  const [editTeam, setEditTeam] = useState(null);
+  const [editTeamName, setEditTeamName] = useState("");
+  const [editTeamDesc, setEditTeamDesc] = useState("");
+  const [editTeamLoading, setEditTeamLoading] = useState(false);
+  const [editTeamError, setEditTeamError] = useState("");
+  const [memberLoading, setMemberLoading] = useState(false);
+  const [memberError, setMemberError] = useState("");
+  const [addMembers, setAddMembers] = useState([]);
+  const [removeMemberId, setRemoveMemberId] = useState(null);
 
   const decodedToken = token ? JSON.parse(atob(token.split('.')[1])) : null;
   const userRole = decodedToken?.role;
@@ -49,6 +67,18 @@ const AdminPanel = () => {
       setLoading(false);
     }
   }, [token]);
+
+  const fetchTeams = useCallback(async () => {
+    setTeamLoading(true);
+    try {
+      const res = await userApi.get("/teams");
+      setTeams(res.data);
+    } catch (err) {
+      // ignore
+    } finally {
+      setTeamLoading(false);
+    }
+  }, []);
 
   const changeRole = async () => {
     if (!selectedUser) return;
@@ -93,7 +123,8 @@ const AdminPanel = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchTeams();
+  }, [fetchUsers, fetchTeams]);
 
   if (userRole !== "admin") {
     return (
@@ -109,6 +140,9 @@ const AdminPanel = () => {
       u.name?.toLowerCase().includes(search.toLowerCase()) ||
       u.email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Add this after fetching teams:
+  const filteredTeams = teams.filter(t => t.name.toLowerCase().includes(teamSearch.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white px-2 sm:px-6 md:px-12 py-6">

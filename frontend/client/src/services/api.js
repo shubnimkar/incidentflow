@@ -16,7 +16,7 @@ export const userApi = axios.create({
 });
 
 export const onCallApi = axios.create({
-  baseURL: "http://localhost:5003/api", // separate from incidentApi
+  baseURL: "http://localhost:5003/api/oncall",
 });
 
 
