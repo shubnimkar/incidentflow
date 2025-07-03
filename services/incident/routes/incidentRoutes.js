@@ -16,6 +16,7 @@ const {
   editComment,
   deleteComment,
   reactToComment,
+  deleteIncident,
 } = require("../controllers/incidentController");
 
 const verifyToken = require("../middleware/auth");
@@ -49,6 +50,7 @@ router.get('/:id', verifyToken, getIncidentById);
 router.put("/:id", verifyToken, requireAdmin, updateIncidentStatus);         // update status
 router.patch("/:id/assign", verifyToken, requireAdmin, assignIncident);      // assign user
 router.patch("/:id", verifyToken, requireAdmin, updateIncident);             // update title, desc, etc.
+router.delete('/:id', verifyToken, requireAdmin, deleteIncident);
 
 // Audit logs route (any logged-in user)
 router.get("/logs/:incidentId", verifyToken, async (req, res) => {

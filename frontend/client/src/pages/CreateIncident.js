@@ -1,5 +1,5 @@
-import React, { useState, useContext } from "react";
-import { incidentApi } from "../services/api";
+import React, { useState, useContext, useEffect } from "react";
+import { incidentApi, userApi, onCallApi } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { DarkModeContext } from "../context/DarkModeContext"; // ✅ import context
 import toast from 'react-hot-toast';
@@ -14,11 +14,17 @@ const severityIcons = {
 function CreateIncident() {
   const navigate = useNavigate();
   const { darkMode } = useContext(DarkModeContext); // ✅ get darkMode from context
+  const [teams, setTeams] = useState([]);
+  const [assignToOnCall, setAssignToOnCall] = useState(false);
+  const [onCallUser, setOnCallUser] = useState(null);
 
   const [form, setForm] = useState({
     title: "",
     description: "",
     severity: "low",
+    tags: "",
+    team: "",
+    category: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,12 +33,50 @@ function CreateIncident() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  useEffect(() => {
+    // Fetch teams from backend
+    const fetchTeams = async () => {
+      try {
+        const res = await userApi.get("/teams");
+        setTeams(res.data);
+      } catch (err) {
+        // ignore
+      }
+    };
+    fetchTeams();
+  }, []);
+
+  useEffect(() => {
+    // Fetch on-call user when assignToOnCall and team are set
+    const fetchOnCall = async () => {
+      if (assignToOnCall && form.team) {
+        try {
+          const res = await onCallApi.get(`/current?team=${form.team}`);
+          setOnCallUser(res.data);
+        } catch (err) {
+          setOnCallUser(null);
+        }
+      } else {
+        setOnCallUser(null);
+      }
+    };
+    fetchOnCall();
+  }, [assignToOnCall, form.team]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      await incidentApi.post("/incidents", form);
+      // Convert tags to array, send all fields
+      const payload = {
+        ...form,
+        tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
+      };
+      if (assignToOnCall && onCallUser?._id) {
+        payload.assignedTo = onCallUser._id;
+      }
+      await incidentApi.post("/incidents", payload);
       toast.success('Incident created!');
       navigate("/dashboard");
     } catch (err) {
@@ -92,6 +136,62 @@ function CreateIncident() {
               <option value="critical">Critical</option>
             </select>
             <p className="text-xs text-gray-400 mt-1">How severe is the incident?</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Tags</label>
+            <input
+              type="text"
+              name="tags"
+              value={form.tags}
+              onChange={handleChange}
+              placeholder="Comma-separated (e.g. bug,urgent)"
+              className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-400 mt-1">Add tags to categorize the incident.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Category</label>
+            <input
+              type="text"
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              placeholder="e.g. Outage, Security, Bug"
+              className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-400 mt-1">Type or category of the incident.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Team</label>
+            <select
+              name="team"
+              value={form.team}
+              onChange={handleChange}
+              className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select team</option>
+              {teams.map((team) => (
+                <option key={team._id} value={team._id}>{team.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Assign to a team.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="assignToOnCall"
+              checked={assignToOnCall}
+              onChange={e => setAssignToOnCall(e.target.checked)}
+              disabled={!form.team}
+            />
+            <label htmlFor="assignToOnCall" className="text-sm text-gray-700 dark:text-gray-200">Assign to current on-call for team</label>
+            {assignToOnCall && form.team && (
+              <span className="text-xs ml-2">
+                {onCallUser
+                  ? `On-Call: ${onCallUser.name || onCallUser.email}`
+                  : "No on-call user found"}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 mt-6">
             <button
