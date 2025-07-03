@@ -3,6 +3,9 @@ const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const path = require("path");
 const multer = require("multer");
+const sendEmail = require('../../auth/utils/sendEmail');
+const emailTemplates = require('../../auth/utils/emailTemplates');
+const fs = require('fs');
 
 // Multer setup for attachments
 const storage = multer.diskStorage({
@@ -17,7 +20,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const createIncident = async (req, res) => {
-  const { title, description, severity } = req.body;
+  const { title, description, severity, tags, team, category } = req.body;
   const user = req.user; // ✅ this is set by verifyToken
 
   try {
@@ -25,6 +28,9 @@ const createIncident = async (req, res) => {
       title,
       description,
       severity,
+      tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
+      team,
+      category,
       createdBy: user.id,           // ✅ userId was not defined — use req.user.id
       createdByEmail: user.email,   // ✅ optional
     });
@@ -40,7 +46,22 @@ const createIncident = async (req, res) => {
 
 const getAllIncidents = async (req, res) => {
   try {
-    const incidents = await Incident.find().populate("createdBy", "email").populate("assignedTo", "email").populate("comments.user", "email");
+    const { status, severity, assignedTo, tags, team, category } = req.query;
+    let filter = {};
+    if (status) filter.status = status;
+    if (severity) filter.severity = severity;
+    if (assignedTo) filter.assignedTo = assignedTo;
+    if (team) filter.team = team;
+    if (category) filter.category = category;
+    if (tags) {
+      // tags can be comma-separated or array
+      const tagsArray = Array.isArray(tags) ? tags : tags.split(',');
+      filter.tags = { $in: tagsArray };
+    }
+    const incidents = await Incident.find(filter)
+      .populate("createdBy", "email")
+      .populate("assignedTo", "email")
+      .populate("comments.user", "email");
 
     const enriched = incidents.map((incident) => {
       const email = incident.createdBy?.email || incident.createdByEmail || "N/A";
@@ -49,7 +70,7 @@ const getAllIncidents = async (req, res) => {
 
     res.json(enriched);
   } catch (error) {
-    console.error("🔥 Error fetching incidents:", error.stack || error);
+    console.error("\ud83d\udd25 Error fetching incidents:", error.stack || error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -86,10 +107,20 @@ const assignIncident = async (req, res) => {
       id,
       { assignedTo },
       { new: true }
-    ).populate("assignedTo", "email");
+    ).populate("assignedTo", "email name");
 
     // Log audit
     await logAudit("assigned incident", req.user.id, id);
+
+    // Send notification email to assigned user
+    if (user.email) {
+      const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/incidents/${id}`;
+      await sendEmail(
+        user.email,
+        `You have been assigned to Incident: ${incident.title}`,
+        emailTemplates.incidentNotification(user.name || user.email, incident.title, incident._id, 'assigned', url)
+      );
+    }
 
     res.status(200).json(incident);
   } catch (err) {
@@ -101,8 +132,12 @@ updateIncident = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-
-    const updatedIncident = await Incident.findByIdAndUpdate(id, updates, { new: true }).populate("createdBy assignedTo", "email");
+    // Validate tags, team, category if present
+    if (updates.tags && !Array.isArray(updates.tags)) {
+      updates.tags = [updates.tags];
+    }
+    const updatedIncident = await Incident.findByIdAndUpdate(id, updates, { new: true })
+      .populate("createdBy assignedTo", "email name");
 
     if (!updatedIncident) {
       return res.status(404).json({ message: "Incident not found" });
@@ -110,6 +145,22 @@ updateIncident = async (req, res) => {
 
     // Log audit
     await logAudit("updated incident", req.user.id, id);
+
+    // Send notification email to assigned user if present
+    if (updatedIncident.assignedTo && updatedIncident.assignedTo.email) {
+      const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/incidents/${id}`;
+      await sendEmail(
+        updatedIncident.assignedTo.email,
+        `Incident Updated: ${updatedIncident.title}`,
+        emailTemplates.incidentNotification(
+          updatedIncident.assignedTo.name || updatedIncident.assignedTo.email,
+          updatedIncident.title,
+          updatedIncident._id,
+          'updated',
+          url
+        )
+      );
+    }
 
     res.json(updatedIncident);
   } catch (err) {
@@ -287,4 +338,30 @@ const reactToComment = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment };
+// Delete an incident (admin only)
+const deleteIncident = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const incident = await Incident.findById(id);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+    // Remove attachments from disk
+    if (incident.attachments && incident.attachments.length > 0) {
+      for (const att of incident.attachments) {
+        if (att.url) {
+          const filePath = path.join(__dirname, '../../uploads/incident-attachments', att.url.split('/').pop());
+          if (fs.existsSync(filePath)) {
+            try { fs.unlinkSync(filePath); } catch (e) { /* ignore */ }
+          }
+        }
+      }
+    }
+    await Incident.findByIdAndDelete(id);
+    await logAudit("deleted incident", req.user.id, id);
+    res.json({ message: "Incident deleted" });
+  } catch (err) {
+    console.error("Failed to delete incident:", err);
+    res.status(500).json({ message: "Failed to delete incident" });
+  }
+};
+
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident };

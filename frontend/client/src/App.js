@@ -15,6 +15,10 @@ import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import AuthCallback from "./pages/AuthCallback";
 import { Toaster, toast } from "react-hot-toast";
+import OnCallStatus from "./pages/OnCallStatus";
+import OnCallRotations from "./pages/OnCallRotations";
+import Teams from "./pages/Teams";
+import Users from "./pages/Users";
 
 
 function App() {
@@ -61,6 +65,10 @@ function App() {
                 user?.role === "admin" ? <AdminPanel /> : <NotAuthorized />
               }
             />
+            <Route path="/oncall-status" element={<OnCallStatus />} />
+            <Route path="/oncall-rotations" element={user?.role === "admin" ? <OnCallRotations /> : <NotAuthorized />} />
+            <Route path="/teams" element={user?.role === "admin" ? <Teams /> : <NotAuthorized />} />
+            <Route path="/users" element={user?.role === "admin" ? <Users /> : <NotAuthorized />} />
           </Route>
         </Routes>
       </Router>

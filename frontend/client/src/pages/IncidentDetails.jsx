@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, Fragment } from "react";
 import { useParams } from "react-router-dom";
-import { incidentApi, userApi } from "../services/api";
+import { incidentApi, userApi, onCallApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 //import 'emoji-mart/dist/emoji-mart.css';
@@ -34,7 +34,7 @@ const IncidentDetails = () => {
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [editFields, setEditFields] = useState({ title: "", description: "", status: "", severity: "" });
+  const [editFields, setEditFields] = useState({ title: "", description: "", status: "", severity: "", tags: [], team: "", category: "" });
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
@@ -59,6 +59,10 @@ const IncidentDetails = () => {
   const emojiPickerRef = useRef(null);
   const [confirmModal, setConfirmModal] = useState({ open: false, onConfirm: null, title: '', description: '' });
   const [hoveredEmoji, setHoveredEmoji] = useState({ commentId: null, emoji: null, users: [] });
+  const [teams, setTeams] = useState([]);
+  const [assignToOnCall, setAssignToOnCall] = useState(false);
+  const [onCallUser, setOnCallUser] = useState(null);
+  const [onCallUserForTeam, setOnCallUserForTeam] = useState(null);
 
   const fetchActivity = async () => {
     setActivityLoading(true);
@@ -87,6 +91,9 @@ const IncidentDetails = () => {
           description: res.data.description,
           status: res.data.status,
           severity: res.data.severity,
+          tags: res.data.tags || [],
+          team: res.data.team || "",
+          category: res.data.category || "",
         });
         setLoading(false);
       } catch (err) {
@@ -145,6 +152,47 @@ const IncidentDetails = () => {
     };
   }, [showEmojiPickerFor]);
 
+  useEffect(() => {
+    // Fetch teams from backend
+    const fetchTeams = async () => {
+      try {
+        const res = await userApi.get("/teams");
+        setTeams(res.data);
+      } catch (err) {
+        // ignore
+      }
+    };
+    fetchTeams();
+  }, []);
+
+  useEffect(() => {
+    // Fetch on-call user when assignToOnCall and team are set
+    const fetchOnCall = async () => {
+      if (assignToOnCall && editFields.team) {
+        try {
+          const res = await onCallApi.get(`/current?team=${editFields.team}`);
+          setOnCallUser(res.data);
+        } catch (err) {
+          setOnCallUser(null);
+        }
+      } else {
+        setOnCallUser(null);
+      }
+    };
+    fetchOnCall();
+  }, [assignToOnCall, editFields.team]);
+
+  useEffect(() => {
+    // Fetch on-call user for the incident's team (for badge display)
+    if (incident && incident.team) {
+      onCallApi.get(`/current?team=${incident.team}`)
+        .then(res => setOnCallUserForTeam(res.data))
+        .catch(() => setOnCallUserForTeam(null));
+    } else {
+      setOnCallUserForTeam(null);
+    }
+  }, [incident]);
+
   const canEdit = user?.role === "admin" || user?.email === incident?.createdBy?.email || user?.email === incident?.createdByEmail;
   const canDeleteAttachment = canEdit;
 
@@ -155,6 +203,9 @@ const IncidentDetails = () => {
       description: incident.description,
       status: incident.status,
       severity: incident.severity,
+      tags: incident.tags || [],
+      team: incident.team || "",
+      category: incident.category || "",
     });
     setEditMode(false);
     setError("");
@@ -165,7 +216,14 @@ const IncidentDetails = () => {
     setSaving(true);
     setError("");
     try {
-      const res = await incidentApi.patch(`/incidents/${id}`, editFields, { headers: { Authorization: `Bearer ${token}` } });
+      const payload = {
+        ...editFields,
+        tags: typeof editFields.tags === 'string' ? editFields.tags.split(',').map(t => t.trim()).filter(Boolean) : editFields.tags,
+      };
+      if (assignToOnCall && onCallUser?._id) {
+        payload.assignedTo = onCallUser._id;
+      }
+      const res = await incidentApi.patch(`/incidents/${id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
       setIncident(res.data);
       setEditMode(false);
       fetchActivity();
@@ -432,6 +490,73 @@ const IncidentDetails = () => {
                 ID: {incident._id}
               </span>
             </div>
+            {/* Category */}
+            <div className="mt-2">
+              <span className="font-semibold">Category:</span>{" "}
+              {editMode ? (
+                <input
+                  className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:text-white mt-1"
+                  value={editFields.category}
+                  onChange={e => handleFieldChange('category', e.target.value)}
+                  disabled={saving}
+                />
+              ) : (
+                <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.category || 'N/A'}</span>
+              )}
+            </div>
+            {/* Tags */}
+            <div className="mt-2">
+              <span className="font-semibold">Tags:</span>{" "}
+              {editMode ? (
+                <input
+                  className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:text-white mt-1"
+                  value={typeof editFields.tags === 'string' ? editFields.tags : (editFields.tags || []).join(', ')}
+                  onChange={e => handleFieldChange('tags', e.target.value)}
+                  disabled={saving}
+                  placeholder="Comma-separated tags"
+                />
+              ) : (
+                <span className="ml-1 text-gray-700 dark:text-gray-200">{(incident.tags || []).join(', ') || 'None'}</span>
+              )}
+            </div>
+            {/* Team */}
+            <div className="mt-2">
+              <span className="font-semibold">Team:</span>{" "}
+              {editMode ? (
+                <select
+                  className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:text-white mt-1"
+                  value={editFields.team}
+                  onChange={e => handleFieldChange('team', e.target.value)}
+                  disabled={saving}
+                >
+                  <option value="">Select team</option>
+                  {teams.map((team) => (
+                    <option key={team._id} value={team._id}>{team.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="ml-1 text-gray-700 dark:text-gray-200">{teams.find(t => t._id === (incident.team || editFields.team))?.name || 'N/A'}</span>
+              )}
+            </div>
+            {editMode && (
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="assignToOnCall"
+                  checked={assignToOnCall}
+                  onChange={e => setAssignToOnCall(e.target.checked)}
+                  disabled={!editFields.team}
+                />
+                <label htmlFor="assignToOnCall" className="text-sm text-gray-700 dark:text-gray-200">Assign to current on-call for team</label>
+                {assignToOnCall && editFields.team && (
+                  <span className="text-xs ml-2">
+                    {onCallUser
+                      ? `On-Call: ${onCallUser.name || onCallUser.email}`
+                      : "No on-call user found"}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <span className="font-semibold">Assigned To:</span>
@@ -462,6 +587,9 @@ const IncidentDetails = () => {
                     }`}>
                       {incident.assignedTo.role}
                     </span>
+                  )}
+                  {onCallUserForTeam && incident.assignedTo && incident.assignedTo._id === onCallUserForTeam._id && (
+                    <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full mt-1" title="Assigned to current on-call user">On-Call</span>
                   )}
                 </div>
               </div>
