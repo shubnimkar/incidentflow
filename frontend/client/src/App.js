@@ -19,6 +19,7 @@ import OnCallStatus from "./pages/OnCallStatus";
 import OnCallRotations from "./pages/OnCallRotations";
 import Teams from "./pages/Teams";
 import Users from "./pages/Users";
+import UserProfile from "./pages/UserProfile";
 
 
 function App() {
@@ -69,6 +70,7 @@ function App() {
             <Route path="/oncall-rotations" element={user?.role === "admin" ? <OnCallRotations /> : <NotAuthorized />} />
             <Route path="/teams" element={user?.role === "admin" ? <Teams /> : <NotAuthorized />} />
             <Route path="/users" element={user?.role === "admin" ? <Users /> : <NotAuthorized />} />
+            <Route path="/profile" element={<UserProfile />} />
           </Route>
         </Routes>
       </Router>

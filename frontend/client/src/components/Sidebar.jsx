@@ -126,6 +126,16 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 {!collapsed && "Teams"}
               </Link>
             </li>
+            <li>
+              <Link
+                to="/profile"
+                className={location.pathname.startsWith("/profile") ? activeClass : inactiveClass}
+                title="Profile"
+              >
+                <span className="mr-2"><FaUserFriends /></span>
+                {!collapsed && "Profile"}
+              </Link>
+            </li>
           </ul>
         </div>
       </nav>
