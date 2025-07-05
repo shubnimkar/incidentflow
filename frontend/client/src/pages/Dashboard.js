@@ -116,7 +116,11 @@ function Dashboard() {
           }
         }
         setOnCallMap(onCallObj);
-      } catch {}
+      } catch (err) {
+        console.error("Failed to fetch teams:", err);
+        setTeams([]);
+        setError("Failed to load teams. Please contact your admin if this persists.");
+      }
     };
     fetchTeamsAndOnCall();
   }, []);
