@@ -89,6 +89,11 @@ const updateIncidentStatus = async (req, res) => {
     if (assignedTo) incident.assignedTo = assignedTo;
 
     await incident.save();
+    // Emit real-time update
+    req.app.get('io').emit('incidentUpdated', {
+      ...incident.toObject(),
+      updatedBy: req.user.id
+    });
     res.json(incident);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -112,16 +117,21 @@ const assignIncident = async (req, res) => {
     // Log audit
     await logAudit("assigned incident", req.user.id, id);
 
-    // Send notification email to assigned user
-    if (user.email) {
-      const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/incidents/${id}`;
-      await sendEmail(
-        user.email,
-        `You have been assigned to Incident: ${incident.title}`,
-        emailTemplates.incidentNotification(user.name || user.email, incident.title, incident._id, 'assigned', url)
-      );
-    }
+    // Temporarily remove email sending
+    // if (user.email) {
+    //   const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/incidents/${id}`;
+    //   await sendEmail(
+    //     user.email,
+    //     `You have been assigned to Incident: ${incident.title}`,
+    //     emailTemplates.incidentNotification(user.name || user.email, incident.title, incident._id, 'assigned', url)
+    //   );
+    // }
 
+    // Emit real-time update
+    req.app.get('io').emit('incidentUpdated', {
+      ...incident.toObject(),
+      updatedBy: req.user.id
+    });
     res.status(200).json(incident);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -42,6 +42,11 @@ exports.deleteUser = async (req, res) => {
   try {
     const userIdToDelete = req.params.id;
 
+    // Defensive: check req.user
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     // Prevent deleting your own account
     if (req.user.id === userIdToDelete) {
       return res.status(400).json({ message: "You cannot delete your own account." });
