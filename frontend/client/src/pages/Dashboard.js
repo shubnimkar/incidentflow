@@ -54,8 +54,26 @@ function Dashboard() {
     const saved = localStorage.getItem('dashboardViewMode');
     return saved || 'kanban';
   }); // 'kanban' or 'list'
+  const [overdueWindow, setOverdueWindow] = useState(24);
+  const [overduePerSeverity, setOverduePerSeverity] = useState({ critical: 4, high: 24, moderate: 48, low: 72 });
   const selectAllRef = useRef();
   const navigate = useNavigate();
+
+  // Fetch overdue window on mount
+  useEffect(() => {
+    const fetchOverdueWindow = async () => {
+      try {
+        const res = await incidentApi.get('/incidents/settings/overdue-window');
+        setOverdueWindow(res.data.overdueWindowHours);
+        setOverduePerSeverity({ ...{ critical: 4, high: 24, moderate: 48, low: 72 }, ...res.data.overdueWindowPerSeverity });
+      } catch (err) {
+        // fallback to default 24
+        setOverdueWindow(24);
+        setOverduePerSeverity({ critical: 4, high: 24, moderate: 48, low: 72 });
+      }
+    };
+    fetchOverdueWindow();
+  }, []);
 
   // Save view mode to localStorage whenever it changes
   const handleViewModeChange = (newMode) => {
@@ -241,8 +259,10 @@ function Dashboard() {
   const overdueCount = incidents.filter(i => {
     const createdAt = new Date(i.createdAt);
     const now = new Date();
+    const sev = i.severity?.toLowerCase();
+    const windowHours = overduePerSeverity[sev] || overdueWindow;
     const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
-    return hoursDiff > 24 && i.status !== 'resolved';
+    return hoursDiff > windowHours && i.status !== 'resolved';
   }).length;
 
   // Chart data for incidents by status
@@ -462,17 +482,17 @@ function Dashboard() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <div className="flex flex-wrap gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4">
+          <div className="flex gap-3 flex-wrap items-center">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
                 <input
                   type="text"
                   placeholder="Search incidents..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-9 pr-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm h-9 transition-all duration-200 shadow-sm"
                 />
               </div>
             </div>
@@ -480,7 +500,7 @@ function Dashboard() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border px-2 py-1.5 rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-9 min-w-[120px]"
             >
               <option value="">All Statuses</option>
               <option value="open">Open</option>
@@ -491,7 +511,7 @@ function Dashboard() {
             <select
               value={severityFilter}
               onChange={(e) => setSeverityFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border px-2 py-1.5 rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-9 min-w-[120px]"
             >
               <option value="">All Severities</option>
               <option value="critical">Critical</option>
@@ -503,7 +523,7 @@ function Dashboard() {
             <select
               value={assignedUserFilter}
               onChange={(e) => setAssignedUserFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border px-2 py-1.5 rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-9 min-w-[120px]"
             >
               <option value="">All Assignees</option>
               {users.map((user) => (
@@ -512,6 +532,19 @@ function Dashboard() {
                 </option>
               ))}
             </select>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+                className="border px-2 py-1.5 rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-9 min-w-[120px]"
+              >
+                <option value="">All Teams</option>
+                {teams.map((team) => (
+                  <option key={team._id} value={team._id}>{team.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -645,7 +678,6 @@ function Dashboard() {
                           <div className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              ref={selectAllRef}
                               checked={list.every(i => selectedIncidents.includes(i._id)) && list.length > 0}
                               onChange={handleSelectAll}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -666,100 +698,94 @@ function Dashboard() {
                                 const onCallUser = onCallMap[incident.team];
                                 const isOnCallAssigned = onCallUser && incident.assignedTo && incident.assignedTo._id === onCallUser._id;
                                 const isSelected = selectedIncidents.includes(incident._id);
-                                const isOverdue = new Date(incident.createdAt) < new Date(Date.now() - 24 * 60 * 60 * 1000) && incident.status !== 'resolved';
+                                const sev = incident.severity?.toLowerCase();
+                                const windowHours = overduePerSeverity[sev] || overdueWindow;
+                                const isOverdue = new Date(incident.createdAt) < new Date(Date.now() - windowHours * 60 * 60 * 1000) && incident.status !== 'resolved';
                                 
                                 return (
                                   <div
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
-                                    className={`bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4 cursor-move transition-all ${
-                                      snapshot.isDragging ? "ring-2 ring-blue-400 shadow-lg scale-105" : "hover:shadow-md"
-                                    } ${isSelected ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : ""} ${
-                                      isOverdue ? "border-l-4 border-l-red-500" : ""
-                                    }`}
+                                    className={`bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4 cursor-move transition-all
+                                      ${snapshot.isDragging ? "ring-2 ring-blue-400 shadow-lg scale-105" : "hover:shadow-md"}
+                                      ${isSelected ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : ""}
+                                      ${isOverdue ? "border-l-4 border-l-red-500" : ""}`}
                                   >
-                                    <div className="flex items-start justify-between mb-3">
-                                      <div className="flex items-center space-x-2 flex-1">
+                                    <div className="flex justify-between items-center mb-2">
+                                      <div className="flex items-center gap-2">
                                         <input
                                           type="checkbox"
                                           checked={isSelected}
                                           onChange={() => handleSelectIncident(incident._id)}
-                                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                          className="accent-blue-600"
+                                          title="Select incident"
                                         />
-                                        <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2">
-                                          {incident.title}
-                                        </h4>
+                                        <strong className="text-base font-semibold truncate max-w-[120px]" title={incident.title}>{incident.title}</strong>
+                                        {isOverdue && (
+                                          <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Overdue</span>
+                                        )}
                                       </div>
-                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityBadgeColor(incident.severity)}`}>
+                                      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${getSeverityBadgeColor(incident.severity)} text-white flex items-center gap-1`} title={incident.severity}>
+                                        {incident.severity === 'critical' && '🔴'}
+                                        {incident.severity === 'high' && '🟠'}
+                                        {incident.severity === 'moderate' && '🟡'}
+                                        {incident.severity === 'low' && '🟢'}
                                         {incident.severity}
                                       </span>
                                     </div>
-
-                                    <div className="space-y-2">
-                                      <div className="flex items-center space-x-2">
-                                        <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
-                                          {incident.assignedTo?.name?.charAt(0).toUpperCase() || incident.assignedTo?.email?.charAt(0).toUpperCase() || '?'}
-                                        </div>
-                                        <span className="text-xs text-gray-600 dark:text-gray-400">
-                                          {incident.assignedTo?.name || incident.assignedTo?.email || "Unassigned"}
-                                        </span>
-                                        {isOnCallAssigned && (
-                                          <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded-full">
-                                            On-Call
-                                          </span>
-                                        )}
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow border-2 border-white dark:border-gray-800" title={incident.assignedTo?.name || incident.assignedTo?.email || 'Unassigned'}>
+                                        {incident.assignedTo?.name?.charAt(0).toUpperCase() || incident.assignedTo?.email?.charAt(0).toUpperCase() || <FaUserCircle />}
                                       </div>
-
-                                      <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                                        <FaCalendarAlt />
-                                        <span>
-                                          {new Date(incident.createdAt).toLocaleDateString()}
-                                        </span>
-                                        {isOverdue && (
-                                          <span className="text-red-600 dark:text-red-400 font-medium">
-                                            Overdue
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      {incident.tags && incident.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1">
-                                          {incident.tags.slice(0, 2).map((tag, idx) => (
-                                            <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
-                                              {tag}
-                                            </span>
-                                          ))}
-                                          {incident.tags.length > 2 && (
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                              +{incident.tags.length - 2} more
-                                            </span>
-                                          )}
-                                        </div>
+                                      <p className="text-xs text-gray-700 dark:text-gray-200 truncate max-w-[120px]">
+                                        Assigned to: <span title={incident.assignedTo?.email}>{incident.assignedTo?.name || incident.assignedTo?.email || "Unassigned"}</span>
+                                        {incident.assignedTo?.role === "admin" && <span className="text-yellow-400 ml-1">👑 Admin</span>}
+                                      </p>
+                                      {isOnCallAssigned && (
+                                        <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full ml-2" title="Assigned to current on-call user">On-Call</span>
                                       )}
-
-                                      <div className="flex items-center justify-between pt-2">
-                                        <select
-                                          value={incident.assignedTo?._id || ""}
-                                          onChange={(e) => handleAssign(incident._id, e.target.value)}
-                                          className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
-                                        >
-                                          <option value="">Assign...</option>
-                                          {users.map((user) => (
-                                            <option key={user._id} value={user._id}>
-                                              {user.name || user.email}
-                                            </option>
-                                          ))}
-                                        </select>
-                                        
-                                        <Link
-                                          to={`/incidents/${incident._id}`}
-                                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                                        >
-                                          View Details
-                                        </Link>
-                                      </div>
                                     </div>
+                                    <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+                                      <FaClock />
+                                      <span title={incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : ''}>
+                                        {incident.updatedAt ? new Date(incident.updatedAt).toLocaleDateString() : '—'}
+                                      </span>
+                                      <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(incident.status)}`}>{statusLabels[incident.status]}</span>
+                                    </div>
+                                    <select
+                                      value={incident.assignedTo?._id || ""}
+                                      onChange={(e) => handleAssign(incident._id, e.target.value)}
+                                      className="w-full mt-1 mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                      title="Assign incident"
+                                    >
+                                      <option value="">Assign to...</option>
+                                      {users.map((user) => (
+                                        <option key={user._id} value={user._id}>
+                                          {user.name || user.email} {user.role === "admin" ? "👑" : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {incident.tags && incident.tags.length > 0 && (
+                                        incident.tags.map((tag, idx) => (
+                                          <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full" title={tag}>{tag}</span>
+                                        ))
+                                      )}
+                                      {incident.category && (
+                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" title={incident.category}>Category: {incident.category}</span>
+                                      )}
+                                      {incident.team && (
+                                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full" title={incident.team}>Team: {incident.team}</span>
+                                      )}
+                                    </div>
+                                    <Link
+                                      to={`/incidents/${incident._id}`}
+                                      className="block text-blue-600 dark:text-blue-400 text-xs font-semibold mt-2 hover:underline"
+                                      title="View Incident Details"
+                                    >
+                                      View Details
+                                    </Link>
                                   </div>
                                 );
                               }}
@@ -783,7 +809,7 @@ function Dashboard() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       <input
                         type="checkbox"
                         checked={filteredIncidents.every(i => selectedIncidents.includes(i._id)) && filteredIncidents.length > 0}
@@ -791,33 +817,23 @@ function Dashboard() {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Incident
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Severity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Assigned To
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Created
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Incident</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Severity</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Assigned To</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                   {filteredIncidents.map((incident) => {
-                    const isOverdue = new Date(incident.createdAt) < new Date(Date.now() - 24 * 60 * 60 * 1000) && incident.status !== 'resolved';
+                    const sev = incident.severity?.toLowerCase();
+                    const windowHours = overduePerSeverity[sev] || overdueWindow;
+                    const isOverdue = new Date(incident.createdAt) < new Date(Date.now() - windowHours * 60 * 60 * 1000) && incident.status !== 'resolved';
                     
                     return (
                       <tr key={incident._id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${isOverdue ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           <input
                             type="checkbox"
                             checked={selectedIncidents.includes(incident._id)}
@@ -825,7 +841,7 @@ function Dashboard() {
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
                               {incident.title}
@@ -841,29 +857,25 @@ function Dashboard() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(incident.status)}`}>
-                            {statusLabels[incident.status]}
-                          </span>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(incident.status)}`}>{statusLabels[incident.status]}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSeverityBadgeColor(incident.severity)}`}>
-                            {incident.severity}
-                          </span>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSeverityBadgeColor(incident.severity)}`}>{incident.severity}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
                               {incident.assignedTo?.name?.charAt(0).toUpperCase() || incident.assignedTo?.email?.charAt(0).toUpperCase() || '?'}
                             </div>
-                            <div className="ml-3">
+                            <div className="ml-2">
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
                                 {incident.assignedTo?.name || incident.assignedTo?.email || "Unassigned"}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                           {new Date(incident.createdAt).toLocaleDateString()}
                           {isOverdue && (
                             <span className="ml-2 text-red-600 dark:text-red-400 font-medium">
@@ -871,7 +883,7 @@ function Dashboard() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs font-medium">
                           <div className="flex items-center space-x-2">
                             <Link
                               to={`/incidents/${incident._id}`}

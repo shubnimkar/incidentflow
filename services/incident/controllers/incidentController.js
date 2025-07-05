@@ -6,6 +6,7 @@ const multer = require("multer");
 const sendEmail = require('../../auth/utils/sendEmail');
 const emailTemplates = require('../../auth/utils/emailTemplates');
 const fs = require('fs');
+const Settings = require('../models/Settings');
 
 // Multer setup for attachments
 const storage = multer.diskStorage({
@@ -374,4 +375,60 @@ const deleteIncident = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident };
+// Get global and per-severity overdue window (in hours)
+const getOverdueWindow = async (req, res) => {
+  try {
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create({});
+    }
+    res.json({
+      overdueWindowHours: settings.overdueWindowHours,
+      overdueWindowPerSeverity: settings.overdueWindowPerSeverity || {}
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Update global and/or per-severity overdue window (admin only)
+const updateOverdueWindow = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    const { overdueWindowHours, overdueWindowPerSeverity } = req.body;
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create({});
+    }
+    if (overdueWindowHours) {
+      if (overdueWindowHours < 1 || overdueWindowHours > 168) {
+        return res.status(400).json({ message: 'Invalid overdue window (1-168 hours allowed)' });
+      }
+      settings.overdueWindowHours = overdueWindowHours;
+    }
+    if (overdueWindowPerSeverity) {
+      // Validate each severity value
+      for (const key of Object.keys(overdueWindowPerSeverity)) {
+        const val = overdueWindowPerSeverity[key];
+        if (typeof val !== 'number' || val < 1 || val > 168) {
+          return res.status(400).json({ message: `Invalid value for ${key} (1-168 hours allowed)` });
+        }
+      }
+      settings.overdueWindowPerSeverity = {
+        ...settings.overdueWindowPerSeverity,
+        ...overdueWindowPerSeverity
+      };
+    }
+    await settings.save();
+    res.json({
+      overdueWindowHours: settings.overdueWindowHours,
+      overdueWindowPerSeverity: settings.overdueWindowPerSeverity || {}
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident, getOverdueWindow, updateOverdueWindow };
