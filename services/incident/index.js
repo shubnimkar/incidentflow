@@ -4,6 +4,8 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const http = require("http");
+const socketIo = require("socket.io");
 require("dotenv").config();
 
 
@@ -11,6 +13,14 @@ require("./models/User"); // 👈 register the User model
 
 dotenv.config();
 const app = express();
+
+// --- Socket.IO setup ---
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: { origin: "*" }
+});
+app.set('io', io); // Make io available in req.app
+// --- End Socket.IO setup ---
 
 app.use(cors({
   origin: "http://localhost:3000", // React app origin
@@ -31,7 +41,7 @@ app.use("/api/incidents", require("./routes/incidentRoutes"));
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("Connected to MongoDB");
-    app.listen(process.env.PORT, () =>
+    server.listen(process.env.PORT, () =>
       console.log(`Incident service running on port ${process.env.PORT}`)
     );
   })
