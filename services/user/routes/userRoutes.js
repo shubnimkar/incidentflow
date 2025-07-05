@@ -295,8 +295,19 @@ router.delete("/me/avatar", authenticateToken, async (req, res) => {
 // ✅ Serve avatars statically
 router.use('/avatars', express.static(avatarDir));
 
+// ✅ Get all teams (authenticated only)
+router.get("/teams", authenticateToken, teamController.getTeams);
+
 // ✅ Admin-protected routes
 router.use(authenticateToken, authorizeAdmin);
+
+// Team management routes (admin only)
+router.post("/teams", teamController.createTeam);
+router.get("/teams/:id", teamController.getTeamById);
+router.put("/teams/:id", teamController.updateTeam);
+router.delete("/teams/:id", teamController.deleteTeam);
+router.post("/teams/:id/add-member", teamController.addMember);
+router.post("/teams/:id/remove-member", teamController.removeMember);
 
 // Change user role (admin only)
 router.patch("/:id/role", async (req, res) => {
@@ -326,15 +337,6 @@ router.patch("/:id/role", async (req, res) => {
 
 // Delete user (admin only)
 router.delete("/:id", deleteUser);
-
-// Team management routes
-router.post("/teams", teamController.createTeam);
-router.get("/teams", teamController.getTeams);
-router.get("/teams/:id", teamController.getTeamById);
-router.put("/teams/:id", teamController.updateTeam);
-router.delete("/teams/:id", teamController.deleteTeam);
-router.post("/teams/:id/add-member", teamController.addMember);
-router.post("/teams/:id/remove-member", teamController.removeMember);
 
 // Resend email verification endpoint
 router.post('/resend-email-verification', authenticateToken, async (req, res) => {
