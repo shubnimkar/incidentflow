@@ -17,6 +17,8 @@ const {
   deleteComment,
   reactToComment,
   deleteIncident,
+  getOverdueWindow,
+  updateOverdueWindow,
 } = require("../controllers/incidentController");
 
 const verifyToken = require("../middleware/auth");
@@ -108,5 +110,9 @@ router.get("/:id/attachments/:filename/download", async (req, res) => {
   }
   res.download(filePath, req.params.filename);
 });
+
+// Overdue window settings
+router.get('/settings/overdue-window', verifyToken, getOverdueWindow);
+router.patch('/settings/overdue-window', verifyToken, requireAdmin, updateOverdueWindow);
 
 module.exports = router;
