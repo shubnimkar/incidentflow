@@ -19,9 +19,11 @@ const {
   deleteIncident,
   getOverdueWindow,
   updateOverdueWindow,
+  archiveIncident,
+  getArchivedIncidents,
 } = require("../controllers/incidentController");
 
-const verifyToken = require("../middleware/auth");
+const { verifyToken, canEditIncident } = require("../middleware/auth");
 const requireAdmin = require("../middleware/admin");
 const AuditLog = require("../models/AuditLog");
 
@@ -51,7 +53,7 @@ router.get('/:id', verifyToken, getIncidentById);
 // Admin routes
 router.put("/:id", verifyToken, requireAdmin, updateIncidentStatus);         // update status
 router.patch("/:id/assign", verifyToken, requireAdmin, assignIncident);      // assign user
-router.patch("/:id", verifyToken, requireAdmin, updateIncident);             // update title, desc, etc.
+router.patch("/:id", verifyToken, canEditIncident, updateIncident);          // update title, desc, etc. - allows admins and creators
 router.delete('/:id', verifyToken, requireAdmin, deleteIncident);
 
 // Audit logs route (any logged-in user)
@@ -114,5 +116,9 @@ router.get("/:id/attachments/:filename/download", async (req, res) => {
 // Overdue window settings
 router.get('/settings/overdue-window', verifyToken, getOverdueWindow);
 router.patch('/settings/overdue-window', verifyToken, requireAdmin, updateOverdueWindow);
+
+// Archive routes (admin only)
+router.put('/:id/archive', verifyToken, requireAdmin, archiveIncident);
+router.get('/archived', verifyToken, requireAdmin, getArchivedIncidents);
 
 module.exports = router;

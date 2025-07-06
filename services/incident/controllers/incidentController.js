@@ -157,20 +157,25 @@ updateIncident = async (req, res) => {
     // Log audit
     await logAudit("updated incident", req.user.id, id);
 
-    // Send notification email to assigned user if present
+    // Send notification email to assigned user if present (wrapped in try-catch to prevent email errors from affecting the update)
     if (updatedIncident.assignedTo && updatedIncident.assignedTo.email) {
-      const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/incidents/${id}`;
-      await sendEmail(
-        updatedIncident.assignedTo.email,
-        `Incident Updated: ${updatedIncident.title}`,
-        emailTemplates.incidentNotification(
-          updatedIncident.assignedTo.name || updatedIncident.assignedTo.email,
-          updatedIncident.title,
-          updatedIncident._id,
-          'updated',
-          url
-        )
-      );
+      try {
+        const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/incidents/${id}`;
+        await sendEmail(
+          updatedIncident.assignedTo.email,
+          `Incident Updated: ${updatedIncident.title}`,
+          emailTemplates.incidentNotification(
+            updatedIncident.assignedTo.name || updatedIncident.assignedTo.email,
+            updatedIncident.title,
+            updatedIncident._id,
+            'updated',
+            url
+          )
+        );
+      } catch (emailError) {
+        console.error("Failed to send notification email:", emailError.message);
+        // Don't fail the request if email sending fails
+      }
     }
 
     res.json(updatedIncident);
@@ -431,4 +436,37 @@ const updateOverdueWindow = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident, getOverdueWindow, updateOverdueWindow };
+// Archive an incident (only if status is 'closed')
+const archiveIncident = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const incident = await Incident.findById(id);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+    if (incident.status !== 'closed') {
+      return res.status(400).json({ message: "Only closed incidents can be archived" });
+    }
+    incident.status = 'archived';
+    incident.archivedAt = new Date();
+    await incident.save();
+    // Log audit
+    await logAudit("archived incident", req.user.id, id);
+    res.json(incident);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get all archived incidents
+const getArchivedIncidents = async (req, res) => {
+  try {
+    const incidents = await Incident.find({ status: 'archived' })
+      .populate("createdBy", "email")
+      .populate("assignedTo", "email")
+      .populate("comments.user", "email");
+    res.json(incidents);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident, getOverdueWindow, updateOverdueWindow, archiveIncident, getArchivedIncidents };

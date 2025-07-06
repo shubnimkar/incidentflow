@@ -156,14 +156,15 @@ const IncidentDetails = () => {
     // Fetch teams from backend
     const fetchTeams = async () => {
       try {
-        const res = await userApi.get("/teams");
+        const res = await userApi.get("/teams", { headers: { Authorization: `Bearer ${token}` } });
         setTeams(res.data);
       } catch (err) {
+        console.error("Error fetching teams:", err);
         // ignore
       }
     };
     fetchTeams();
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     // Fetch on-call user when assignToOnCall and team are set
@@ -227,8 +228,12 @@ const IncidentDetails = () => {
       setIncident(res.data);
       setEditMode(false);
       fetchActivity();
+      toast.success('Incident updated successfully!');
     } catch (err) {
-      setError("Failed to update incident");
+      console.error("Error updating incident:", err);
+      const errorMessage = err.response?.data?.message || "Failed to update incident";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -625,6 +630,25 @@ const IncidentDetails = () => {
               )}
               {error && <span className="text-xs text-red-600 ml-2">{error}</span>}
             </div>
+          )}
+          {!editMode && incident.status === 'resolved' && user?.role === 'admin' && (
+            <button
+              className="mt-2 w-full px-3 py-2 rounded-lg bg-green-600 text-white font-semibold text-xs hover:bg-green-700 transition"
+              onClick={() => setConfirmModal({
+                open: true,
+                title: 'Mark Incident as Closed?',
+                description: 'Are you sure you want to mark this incident as closed? This action cannot be undone.',
+                onConfirm: async () => {
+                  await incidentApi.put(`/incidents/${incident._id}`, { status: 'closed' }, { headers: { Authorization: `Bearer ${token}` } });
+                  const res = await incidentApi.get(`/incidents/${incident._id}`, { headers: { Authorization: `Bearer ${token}` } });
+                  setIncident(res.data);
+                  fetchActivity();
+                  toast.success('Incident marked as closed!');
+                }
+              })}
+            >
+              Mark as Closed
+            </button>
           )}
         </div>
         {/* Right Panel: Details & Comments */}

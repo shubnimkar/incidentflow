@@ -47,7 +47,7 @@ const incidentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["open", "in_progress", "resolved", "closed"],
+      enum: ["open", "in_progress", "resolved", "closed", "archived"],
       default: "open",
     },
     createdBy: {
@@ -74,6 +74,8 @@ const incidentSchema = new mongoose.Schema(
     },
     comments: [commentSchema],
     attachments: [attachmentSchema],
+    // Add archivedAt timestamp for archival tracking
+    archivedAt: { type: Date },
   },
   { timestamps: true }
 );
