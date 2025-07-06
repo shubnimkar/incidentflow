@@ -22,12 +22,14 @@ import {
   FaEllipsisH,
   FaCalendarAlt,
   FaTag,
-  FaLayerGroup
+  FaLayerGroup,
+  FaTimes
 } from 'react-icons/fa';
 import { Pie, Line } from 'react-chartjs-2';
 import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement } from 'chart.js';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import ConfirmModal from "../components/ConfirmModal";
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement);
 
 function Dashboard() {
@@ -58,6 +60,8 @@ function Dashboard() {
   const [overduePerSeverity, setOverduePerSeverity] = useState({ critical: 4, high: 24, moderate: 48, low: 72 });
   const selectAllRef = useRef();
   const navigate = useNavigate();
+  const [closeConfirmId, setCloseConfirmId] = useState(null);
+  const searchInputRef = useRef();
 
   // Fetch overdue window on mount
   useEffect(() => {
@@ -196,14 +200,28 @@ function Dashboard() {
     return matchesTitle && matchesStatus && matchesSeverity && matchesAssignedUser && matchesTag && matchesTeam && matchesCategory;
   });
 
+  const statusLabels = {
+    open: "Open",
+    in_progress: "In Progress",
+    resolved: "Resolved",
+  };
+
   const groupedIncidents = { open: [], in_progress: [], resolved: [] };
   filteredIncidents.forEach((i) => {
-    groupedIncidents[i.status]?.push(i);
+    if (i.status !== 'closed') {
+      groupedIncidents[i.status]?.push(i);
+    }
   });
 
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
+    
+    // Check if user has admin privileges
+    if (user?.role !== 'admin') {
+      toast.error("Only admins can update incident status via drag and drop.");
+      return;
+    }
     
     // Optimistically update the UI
     const updatedIncidents = incidents.map((incident) =>
@@ -223,7 +241,11 @@ function Dashboard() {
       console.error("Failed to update status", err);
       // Revert the optimistic update
       setIncidents(incidents);
-      toast.error("Failed to update status. You may need admin privileges.");
+      if (err.response?.status === 403) {
+        toast.error("Access denied. Admin privileges required to update incident status.");
+      } else {
+        toast.error("Failed to update status. Please try again.");
+      }
     }
   };
 
@@ -244,12 +266,6 @@ function Dashboard() {
       case "resolved": return "bg-green-100 text-green-800 border-green-200";
       default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
-  };
-
-  const statusLabels = {
-    open: "Open",
-    in_progress: "In Progress",
-    resolved: "Resolved"
   };
 
   // Enhanced metrics calculations
@@ -291,12 +307,13 @@ function Dashboard() {
     ],
   };
 
-  // Handle select/deselect all in filteredIncidents
-  const handleSelectAll = (e) => {
+  // Handle select/deselect all in a specific status column
+  const handleSelectAll = (status) => (e) => {
+    const columnIncidents = filteredIncidents.filter(i => i.status === status);
     if (e.target.checked) {
-      setSelectedIncidents(filteredIncidents.map(i => i._id));
+      setSelectedIncidents(prev => Array.from(new Set([...prev, ...columnIncidents.map(i => i._id)])));
     } else {
-      setSelectedIncidents([]);
+      setSelectedIncidents(prev => prev.filter(id => !columnIncidents.some(i => i._id === id)));
     }
   };
 
@@ -339,6 +356,13 @@ function Dashboard() {
   // Bulk status change
   const handleBulkStatus = async () => {
     if (!bulkStatus) return;
+    
+    // Check if user has admin privileges
+    if (user?.role !== 'admin') {
+      toast.error("Only admins can update incident status. Please contact an administrator.");
+      return;
+    }
+    
     setBulkLoading(true);
     try {
       await Promise.all(selectedIncidents.map(id => incidentApi.put(`/incidents/${id}`, { status: bulkStatus })));
@@ -347,8 +371,13 @@ function Dashboard() {
       setBulkStatus("");
       const res = await incidentApi.get("/incidents");
       setIncidents(res.data);
-    } catch {
-      toast.error("Failed to update status. You may need admin privileges.");
+    } catch (err) {
+      console.error("Failed to update status", err);
+      if (err.response?.status === 403) {
+        toast.error("Access denied. Admin privileges required to update incident status.");
+      } else {
+        toast.error("Failed to update status. Please try again.");
+      }
     } finally {
       setBulkLoading(false);
     }
@@ -356,6 +385,12 @@ function Dashboard() {
 
   // Bulk delete
   const handleBulkDelete = async () => {
+    // Check if user has admin privileges
+    if (user?.role !== 'admin') {
+      toast.error("Only admins can delete incidents. Please contact an administrator.");
+      return;
+    }
+    
     setBulkLoading(true);
     try {
       await Promise.all(selectedIncidents.map(id => incidentApi.delete(`/incidents/${id}`)));
@@ -364,8 +399,13 @@ function Dashboard() {
       setShowDeleteConfirm(false);
       const res = await incidentApi.get("/incidents");
       setIncidents(res.data);
-    } catch {
-      toast.error("Failed to delete incidents");
+    } catch (err) {
+      console.error("Failed to delete incidents", err);
+      if (err.response?.status === 403) {
+        toast.error("Access denied. Admin privileges required to delete incidents.");
+      } else {
+        toast.error("Failed to delete incidents. Please try again.");
+      }
     } finally {
       setBulkLoading(false);
     }
@@ -496,8 +536,22 @@ function Dashboard() {
                   placeholder="Search incidents..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm h-9 transition-all duration-200 shadow-sm"
+                  className="w-full pl-9 pr-8 py-1.5 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm h-9 transition-all duration-200 shadow-sm"
+                  ref={searchInputRef}
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none"
+                    onClick={() => {
+                      setSearchTerm("");
+                      searchInputRef.current && searchInputRef.current.focus();
+                    }}
+                    aria-label="Clear search"
+                  >
+                    <FaTimes />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -550,10 +604,16 @@ function Dashboard() {
               </select>
             </div>
           </div>
+          {user?.role !== 'admin' && (
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <FaShieldAlt className="text-yellow-500" />
+              <span>Admin privileges required for editing incidents. View-only mode for non-admin users.</span>
+            </div>
+          )}
         </div>
 
         {/* Bulk Action Bar */}
-        {selectedIncidents.length > 0 && (
+        {selectedIncidents.length > 0 && user?.role === 'admin' && (
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -666,10 +726,10 @@ function Dashboard() {
         {/* Kanban Board */}
         {viewMode === 'kanban' && (
           <div className="space-y-6">
-            <DragDropContext onDragEnd={onDragEnd}>
+            <DragDropContext onDragEnd={user?.role === 'admin' ? onDragEnd : () => {}}>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {Object.entries(groupedIncidents).map(([status, list]) => (
-                  <Droppable droppableId={status} key={status}>
+                  <Droppable droppableId={status} key={status} isDropDisabled={user?.role !== 'admin'}>
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
@@ -680,12 +740,14 @@ function Dashboard() {
                       >
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={list.every(i => selectedIncidents.includes(i._id)) && list.length > 0}
-                              onChange={handleSelectAll}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
+                            {user?.role === 'admin' && (
+                              <input
+                                type="checkbox"
+                                checked={list.every(i => selectedIncidents.includes(i._id)) && list.length > 0}
+                                onChange={handleSelectAll(status)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                            )}
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
                               {statusLabels[status]}
                             </h3>
@@ -697,7 +759,7 @@ function Dashboard() {
                         
                         <div className="space-y-3">
                           {list.map((incident, index) => (
-                            <Draggable key={incident._id} draggableId={incident._id.toString()} index={index}>
+                            <Draggable key={incident._id} draggableId={incident._id.toString()} index={index} isDragDisabled={user?.role !== 'admin'}>
                               {(provided, snapshot) => {
                                 const onCallUser = onCallMap[incident.team];
                                 const isOnCallAssigned = onCallUser && incident.assignedTo && incident.assignedTo._id === onCallUser._id;
@@ -711,20 +773,23 @@ function Dashboard() {
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
-                                    className={`bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4 cursor-move transition-all
+                                    className={`bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4 transition-all
                                       ${snapshot.isDragging ? "ring-2 ring-blue-400 shadow-lg scale-105" : "hover:shadow-md"}
                                       ${isSelected ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : ""}
-                                      ${isOverdue ? "border-l-4 border-l-red-500" : ""}`}
+                                      ${isOverdue ? "border-l-4 border-l-red-500" : ""}
+                                      ${user?.role !== 'admin' ? "cursor-default" : "cursor-move"}`}
                                   >
                                     <div className="flex justify-between items-center mb-2">
                                       <div className="flex items-center gap-2">
-                                        <input
-                                          type="checkbox"
-                                          checked={isSelected}
-                                          onChange={() => handleSelectIncident(incident._id)}
-                                          className="accent-blue-600"
-                                          title="Select incident"
-                                        />
+                                        {user?.role === 'admin' && (
+                                          <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => handleSelectIncident(incident._id)}
+                                            className="accent-blue-600"
+                                            title="Select incident"
+                                          />
+                                        )}
                                         <strong className="text-base font-semibold truncate max-w-[120px]" title={incident.title}>{incident.title}</strong>
                                         {isOverdue && (
                                           <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Overdue</span>
@@ -757,19 +822,25 @@ function Dashboard() {
                                       </span>
                                       <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(incident.status)}`}>{statusLabels[incident.status]}</span>
                                     </div>
-                                    <select
-                                      value={incident.assignedTo?._id || ""}
-                                      onChange={(e) => handleAssign(incident._id, e.target.value)}
-                                      className="w-full mt-1 mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                      title="Assign incident"
-                                    >
-                                      <option value="">Assign to...</option>
-                                      {users.map((user) => (
-                                        <option key={user._id} value={user._id}>
-                                          {user.name || user.email} {user.role === "admin" ? "👑" : ""}
-                                        </option>
-                                      ))}
-                                    </select>
+                                    {user?.role === 'admin' ? (
+                                      <select
+                                        value={incident.assignedTo?._id || ""}
+                                        onChange={(e) => handleAssign(incident._id, e.target.value)}
+                                        className="w-full mt-1 mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        title="Assign incident"
+                                      >
+                                        <option value="">Assign to...</option>
+                                        {users.map((user) => (
+                                          <option key={user._id} value={user._id}>
+                                            {user.name || user.email} {user.role === "admin" ? "👑" : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <div className="mt-1 mb-2 text-xs text-gray-600 dark:text-gray-400">
+                                        <span className="font-medium">Assignment:</span> {incident.assignedTo?.name || incident.assignedTo?.email || "Unassigned"}
+                                      </div>
+                                    )}
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {incident.tags && incident.tags.length > 0 && (
                                         incident.tags.map((tag, idx) => (
@@ -813,14 +884,16 @@ function Dashboard() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      <input
-                        type="checkbox"
-                        checked={filteredIncidents.every(i => selectedIncidents.includes(i._id)) && filteredIncidents.length > 0}
-                        onChange={handleSelectAll}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </th>
+                    {user?.role === 'admin' && (
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <input
+                          type="checkbox"
+                          checked={filteredIncidents.every(i => selectedIncidents.includes(i._id)) && filteredIncidents.length > 0}
+                          onChange={handleSelectAll(statusFilter)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </th>
+                    )}
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Incident</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Severity</th>
@@ -837,14 +910,16 @@ function Dashboard() {
                     
                     return (
                       <tr key={incident._id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${isOverdue ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={selectedIncidents.includes(incident._id)}
-                            onChange={() => handleSelectIncident(incident._id)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                        </td>
+                        {user?.role === 'admin' && (
+                          <td className="px-2 py-2 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedIncidents.includes(incident._id)}
+                              onChange={() => handleSelectIncident(incident._id)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </td>
+                        )}
                         <td className="px-2 py-2 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -895,18 +970,20 @@ function Dashboard() {
                             >
                               <FaEye className="w-4 h-4" />
                             </Link>
-                            <select
-                              value={incident.assignedTo?._id || ""}
-                              onChange={(e) => handleAssign(incident._id, e.target.value)}
-                              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
-                            >
-                              <option value="">Assign...</option>
-                              {users.map((user) => (
-                                <option key={user._id} value={user._id}>
-                                  {user.name || user.email}
-                                </option>
-                              ))}
-                            </select>
+                            {user?.role === 'admin' && (
+                              <select
+                                value={incident.assignedTo?._id || ""}
+                                onChange={(e) => handleAssign(incident._id, e.target.value)}
+                                className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="">Assign...</option>
+                                {users.map((user) => (
+                                  <option key={user._id} value={user._id}>
+                                    {user.name || user.email}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -964,6 +1041,22 @@ function Dashboard() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Confirmation modal */}
+        {closeConfirmId && (
+          <ConfirmModal
+            title="Mark Incident as Closed?"
+            message="Are you sure you want to mark this incident as closed? This action cannot be undone."
+            onConfirm={async () => {
+              await incidentApi.put(`/incidents/${closeConfirmId}`, { status: 'closed' });
+              setCloseConfirmId(null);
+              // Refresh incidents
+              const res = await incidentApi.get('/incidents');
+              setIncidents(res.data);
+            }}
+            onCancel={() => setCloseConfirmId(null)}
+          />
         )}
       </div>
     </div>

@@ -20,6 +20,7 @@ import OnCallRotations from "./pages/OnCallRotations";
 import Teams from "./pages/Teams";
 import Users from "./pages/Users";
 import UserProfile from "./pages/UserProfile";
+import ClosedCases from "./pages/ClosedCases";
 
 
 function App() {
@@ -60,6 +61,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/create" element={<CreateIncident />} />
             <Route path="/incidents/:id" element={<IncidentDetails />} />
+            <Route path="/closed-cases" element={<ClosedCases />} />
             <Route
               path="/admin"
               element={
