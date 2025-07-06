@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const createIncident = async (req, res) => {
-  const { title, description, severity, tags, team, category } = req.body;
+  const { title, description, severity, urgency, status, assignedTo, tags, team, category, incidentType, impactedService, priority, responders, meetingUrl } = req.body;
   const user = req.user; // ✅ this is set by verifyToken
 
   try {
@@ -29,9 +29,17 @@ const createIncident = async (req, res) => {
       title,
       description,
       severity,
+      urgency,
+      status,
+      assignedTo,
       tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
       team,
       category,
+      incidentType,
+      impactedService,
+      priority,
+      responders: Array.isArray(responders) ? responders : (responders ? [responders] : []),
+      meetingUrl,
       createdBy: user.id,           // ✅ userId was not defined — use req.user.id
       createdByEmail: user.email,   // ✅ optional
     });
@@ -147,8 +155,13 @@ updateIncident = async (req, res) => {
     if (updates.tags && !Array.isArray(updates.tags)) {
       updates.tags = [updates.tags];
     }
+    if (updates.responders && !Array.isArray(updates.responders)) {
+      updates.responders = [updates.responders];
+    }
     const updatedIncident = await Incident.findByIdAndUpdate(id, updates, { new: true })
-      .populate("createdBy assignedTo", "email name");
+      .populate("createdBy assignedTo", "email name")
+      .populate("responders", "name email")
+      .populate("team", "name");
 
     if (!updatedIncident) {
       return res.status(404).json({ message: "Incident not found" });
@@ -221,6 +234,8 @@ const getIncidentById = async (req, res) => {
     const incident = await Incident.findById(req.params.id)
       .populate("createdBy", "email")
       .populate("assignedTo", "email")
+      .populate("responders", "name email")
+      .populate("team", "name")
       .populate("comments.user", "email role")
       .populate("attachments.uploadedBy", "email");
 

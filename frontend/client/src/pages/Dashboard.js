@@ -30,6 +30,7 @@ import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointEl
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import ConfirmModal from "../components/ConfirmModal";
+
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement);
 
 function Dashboard() {
@@ -758,114 +759,114 @@ function Dashboard() {
                         </div>
                         
                         <div className="space-y-3">
-                          {list.map((incident, index) => (
-                            <Draggable key={incident._id} draggableId={incident._id.toString()} index={index} isDragDisabled={user?.role !== 'admin'}>
-                              {(provided, snapshot) => {
-                                const onCallUser = onCallMap[incident.team];
-                                const isOnCallAssigned = onCallUser && incident.assignedTo && incident.assignedTo._id === onCallUser._id;
-                                const isSelected = selectedIncidents.includes(incident._id);
-                                const sev = incident.severity?.toLowerCase();
-                                const windowHours = overduePerSeverity[sev] || overdueWindow;
-                                const isOverdue = new Date(incident.createdAt) < new Date(Date.now() - windowHours * 60 * 60 * 1000) && incident.status !== 'resolved';
-                                
-                                return (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    className={`bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4 transition-all
-                                      ${snapshot.isDragging ? "ring-2 ring-blue-400 shadow-lg scale-105" : "hover:shadow-md"}
-                                      ${isSelected ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : ""}
-                                      ${isOverdue ? "border-l-4 border-l-red-500" : ""}
-                                      ${user?.role !== 'admin' ? "cursor-default" : "cursor-move"}`}
-                                  >
-                                    <div className="flex justify-between items-center mb-2">
-                                      <div className="flex items-center gap-2">
-                                        {user?.role === 'admin' && (
-                                          <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => handleSelectIncident(incident._id)}
-                                            className="accent-blue-600"
-                                            title="Select incident"
-                                          />
-                                        )}
-                                        <strong className="text-base font-semibold truncate max-w-[120px]" title={incident.title}>{incident.title}</strong>
-                                        {isOverdue && (
-                                          <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Overdue</span>
-                                        )}
-                                      </div>
-                                      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${getSeverityBadgeColor(incident.severity)} text-white flex items-center gap-1`} title={incident.severity}>
-                                        {incident.severity === 'critical' && '🔴'}
-                                        {incident.severity === 'high' && '🟠'}
-                                        {incident.severity === 'moderate' && '🟡'}
-                                        {incident.severity === 'low' && '🟢'}
-                                        {incident.severity}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow border-2 border-white dark:border-gray-800" title={incident.assignedTo?.name || incident.assignedTo?.email || 'Unassigned'}>
-                                        {incident.assignedTo?.name?.charAt(0).toUpperCase() || incident.assignedTo?.email?.charAt(0).toUpperCase() || <FaUserCircle />}
-                                      </div>
-                                      <p className="text-xs text-gray-700 dark:text-gray-200 truncate max-w-[120px]">
-                                        Assigned to: <span title={incident.assignedTo?.email}>{incident.assignedTo?.name || incident.assignedTo?.email || "Unassigned"}</span>
-                                        {incident.assignedTo?.role === "admin" && <span className="text-yellow-400 ml-1">👑 Admin</span>}
-                                      </p>
-                                      {isOnCallAssigned && (
-                                        <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full ml-2" title="Assigned to current on-call user">On-Call</span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
-                                      <FaClock />
-                                      <span title={incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : ''}>
-                                        {incident.updatedAt ? new Date(incident.updatedAt).toLocaleDateString() : '—'}
-                                      </span>
-                                      <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(incident.status)}`}>{statusLabels[incident.status]}</span>
-                                    </div>
-                                    {user?.role === 'admin' ? (
-                                      <select
-                                        value={incident.assignedTo?._id || ""}
-                                        onChange={(e) => handleAssign(incident._id, e.target.value)}
-                                        className="w-full mt-1 mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                        title="Assign incident"
-                                      >
-                                        <option value="">Assign to...</option>
-                                        {users.map((user) => (
-                                          <option key={user._id} value={user._id}>
-                                            {user.name || user.email} {user.role === "admin" ? "👑" : ""}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    ) : (
-                                      <div className="mt-1 mb-2 text-xs text-gray-600 dark:text-gray-400">
-                                        <span className="font-medium">Assignment:</span> {incident.assignedTo?.name || incident.assignedTo?.email || "Unassigned"}
-                                      </div>
-                                    )}
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {incident.tags && incident.tags.length > 0 && (
-                                        incident.tags.map((tag, idx) => (
-                                          <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full" title={tag}>{tag}</span>
-                                        ))
-                                      )}
-                                      {incident.category && (
-                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" title={incident.category}>Category: {incident.category}</span>
-                                      )}
-                                      {incident.team && (
-                                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full" title={incident.team}>Team: {incident.team}</span>
-                                      )}
-                                    </div>
-                                    <Link
-                                      to={`/incidents/${incident._id}`}
-                                      className="block text-blue-600 dark:text-blue-400 text-xs font-semibold mt-2 hover:underline"
-                                      title="View Incident Details"
+                                                      {list.map((incident, index) => (
+                              <Draggable key={incident._id} draggableId={incident._id.toString()} index={index} isDragDisabled={user?.role !== 'admin'}>
+                                {(provided, snapshot) => {
+                                  const onCallUser = onCallMap[incident.team];
+                                  const isOnCallAssigned = onCallUser && incident.assignedTo && incident.assignedTo._id === onCallUser._id;
+                                  const isSelected = selectedIncidents.includes(incident._id);
+                                  const sev = incident.severity?.toLowerCase();
+                                  const windowHours = overduePerSeverity[sev] || overdueWindow;
+                                  const isOverdue = new Date(incident.createdAt) < new Date(Date.now() - windowHours * 60 * 60 * 1000) && incident.status !== 'resolved';
+                                  
+                                  return (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      className={`bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4 transition-all
+                                        ${snapshot.isDragging ? "ring-2 ring-blue-400 shadow-lg scale-105" : "hover:shadow-md"}
+                                        ${isSelected ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20" : ""}
+                                        ${isOverdue ? "border-l-4 border-l-red-500" : ""}
+                                        ${user?.role !== 'admin' ? "cursor-default" : "cursor-move"}`}
                                     >
-                                      View Details
-                                    </Link>
-                                  </div>
-                                );
-                              }}
-                            </Draggable>
-                          ))}
+                                      <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2">
+                                          {user?.role === 'admin' && (
+                                            <input
+                                              type="checkbox"
+                                              checked={isSelected}
+                                              onChange={() => handleSelectIncident(incident._id)}
+                                              className="accent-blue-600"
+                                              title="Select incident"
+                                            />
+                                          )}
+                                          <strong className="text-base font-semibold truncate max-w-[120px]" title={incident.title}>{incident.title}</strong>
+                                          {isOverdue && (
+                                            <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Overdue</span>
+                                          )}
+                                        </div>
+                                        <span className={`text-xs px-2 py-1 rounded-full font-semibold ${getSeverityBadgeColor(incident.severity)} text-white flex items-center gap-1`} title={incident.severity}>
+                                          {incident.severity === 'critical' && '🔴'}
+                                          {incident.severity === 'high' && '🟠'}
+                                          {incident.severity === 'moderate' && '🟡'}
+                                          {incident.severity === 'low' && '🟢'}
+                                          {incident.severity}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow border-2 border-white dark:border-gray-800" title={incident.assignedTo?.name || incident.assignedTo?.email || 'Unassigned'}>
+                                          {incident.assignedTo?.name?.charAt(0).toUpperCase() || incident.assignedTo?.email?.charAt(0).toUpperCase() || <FaUserCircle />}
+                                        </div>
+                                        <p className="text-xs text-gray-700 dark:text-gray-200 truncate max-w-[120px]">
+                                          Assigned to: <span title={incident.assignedTo?.email}>{incident.assignedTo?.name || incident.assignedTo?.email || "Unassigned"}</span>
+                                          {incident.assignedTo?.role === "admin" && <span className="text-yellow-400 ml-1">👑 Admin</span>}
+                                        </p>
+                                        {isOnCallAssigned && (
+                                          <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full ml-2" title="Assigned to current on-call user">On-Call</span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+                                        <FaClock />
+                                        <span title={incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : ''}>
+                                          {incident.updatedAt ? new Date(incident.updatedAt).toLocaleDateString() : '—'}
+                                        </span>
+                                        <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(incident.status)}`}>{statusLabels[incident.status]}</span>
+                                      </div>
+                                      {user?.role === 'admin' ? (
+                                        <select
+                                          value={incident.assignedTo?._id || ""}
+                                          onChange={(e) => handleAssign(incident._id, e.target.value)}
+                                          className="w-full mt-1 mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                          title="Assign incident"
+                                        >
+                                          <option value="">Assign to...</option>
+                                          {users.map((user) => (
+                                            <option key={user._id} value={user._id}>
+                                              {user.name || user.email} {user.role === "admin" ? "👑" : ""}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      ) : (
+                                        <div className="mt-1 mb-2 text-xs text-gray-600 dark:text-gray-400">
+                                          <span className="font-medium">Assignment:</span> {incident.assignedTo?.name || incident.assignedTo?.email || "Unassigned"}
+                                        </div>
+                                      )}
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {incident.tags && incident.tags.length > 0 && (
+                                          incident.tags.map((tag, idx) => (
+                                            <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full" title={tag}>{tag}</span>
+                                          ))
+                                        )}
+                                        {incident.category && (
+                                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" title={incident.category}>Category: {incident.category}</span>
+                                        )}
+                                        {incident.team && (
+                                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full" title={incident.team}>Team: {teams.find(t => t._id === incident.team)?.name || "N/A"}</span>
+                                        )}
+                                      </div>
+                                      <Link
+                                        to={`/incidents/${incident._id}`}
+                                        className="block text-blue-600 dark:text-blue-400 text-xs font-semibold mt-2 hover:underline"
+                                        title="View Incident Details"
+                                      >
+                                        View Details
+                                      </Link>
+                                    </div>
+                                  );
+                                }}
+                              </Draggable>
+                            ))}
                           {provided.placeholder}
                         </div>
                       </div>
