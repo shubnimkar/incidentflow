@@ -23,6 +23,42 @@ const severityOptions = [
   { value: "moderate", label: "Moderate" },
   { value: "low", label: "Low" },
 ];
+const urgencyOptions = [
+  { value: "High", label: "High" },
+  { value: "Low", label: "Low" },
+];
+
+const incidentTypeOptions = [
+  { value: "Base Incident", label: "Base Incident" },
+  { value: "Security Incident", label: "Security Incident" },
+  { value: "Service Outage", label: "Service Outage" },
+];
+const serviceOptions = [
+  { value: "API Gateway", label: "API Gateway" },
+  { value: "Frontend Web App", label: "Frontend Web App" },
+  { value: "Mobile App", label: "Mobile App" },
+  { value: "Database", label: "Database" },
+  { value: "Authentication Service", label: "Authentication Service" },
+  { value: "Payments Service", label: "Payments Service" },
+  { value: "Notification Service", label: "Notification Service" },
+  { value: "File Storage", label: "File Storage" },
+  { value: "Search Service", label: "Search Service" },
+  { value: "Reporting/Analytics", label: "Reporting/Analytics" },
+  { value: "Third-Party Integration", label: "Third-Party Integration" },
+  { value: "Internal Tools", label: "Internal Tools" },
+  { value: "Load Balancer", label: "Load Balancer" },
+  { value: "Network / VPN", label: "Network / VPN" },
+  { value: "CI/CD Pipeline", label: "CI/CD Pipeline" },
+  { value: "Monitoring/Alerting", label: "Monitoring/Alerting" },
+  { value: "Other", label: "Other" },
+];
+const priorityOptions = [
+  { value: "None", label: "None" },
+  { value: "P1", label: "P1" },
+  { value: "P2", label: "P2" },
+  { value: "P3", label: "P3" },
+  { value: "P4", label: "P4" },
+];
 
 const BACKEND_URL = "http://localhost:5001";
 
@@ -34,7 +70,20 @@ const IncidentDetails = () => {
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [editFields, setEditFields] = useState({ title: "", description: "", status: "", severity: "", tags: [], team: "", category: "" });
+  const [editFields, setEditFields] = useState({
+    title: "",
+    description: "",
+    status: "",
+    severity: "",
+    urgency: "",
+    team: "",
+    incidentType: "",
+    impactedService: "",
+    priority: "",
+    assignedTo: "",
+    responders: [],
+    meetingUrl: "",
+  });
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
@@ -91,9 +140,14 @@ const IncidentDetails = () => {
           description: res.data.description,
           status: res.data.status,
           severity: res.data.severity,
-          tags: res.data.tags || [],
+          urgency: res.data.urgency || "",
           team: res.data.team || "",
-          category: res.data.category || "",
+          incidentType: res.data.incidentType || "",
+          impactedService: res.data.impactedService || "",
+          priority: res.data.priority || "",
+          assignedTo: res.data.assignedTo?._id || "",
+          responders: res.data.responders || [],
+          meetingUrl: res.data.meetingUrl || "",
         });
         setLoading(false);
       } catch (err) {
@@ -204,14 +258,22 @@ const IncidentDetails = () => {
       description: incident.description,
       status: incident.status,
       severity: incident.severity,
-      tags: incident.tags || [],
+      urgency: incident.urgency || "",
       team: incident.team || "",
-      category: incident.category || "",
+      incidentType: incident.incidentType || "",
+      impactedService: incident.impactedService || "",
+      priority: incident.priority || "",
+      assignedTo: incident.assignedTo?._id || "",
+      responders: incident.responders || [],
+      meetingUrl: incident.meetingUrl || "",
     });
     setEditMode(false);
     setError("");
   };
   const handleFieldChange = (field, value) => setEditFields((prev) => ({ ...prev, [field]: value }));
+
+  const userOptions = users.map((u) => ({ value: u._id, label: u.name || u.email }));
+  const teamOptions = teams.map((t) => ({ value: t._id, label: t.name }));
 
   const handleSave = async () => {
     setSaving(true);
@@ -219,7 +281,14 @@ const IncidentDetails = () => {
     try {
       const payload = {
         ...editFields,
-        tags: typeof editFields.tags === 'string' ? editFields.tags.split(',').map(t => t.trim()).filter(Boolean) : editFields.tags,
+        urgency: editFields.urgency,
+        team: editFields.team,
+        incidentType: editFields.incidentType,
+        impactedService: editFields.impactedService,
+        priority: editFields.priority,
+        assignedTo: editFields.assignedTo,
+        responders: editFields.responders,
+        meetingUrl: editFields.meetingUrl,
       };
       if (assignToOnCall && onCallUser?._id) {
         payload.assignedTo = onCallUser._id;
@@ -495,34 +564,10 @@ const IncidentDetails = () => {
                 ID: {incident._id}
               </span>
             </div>
-            {/* Category */}
+            {/* Urgency */}
             <div className="mt-2">
-              <span className="font-semibold">Category:</span>{" "}
-              {editMode ? (
-                <input
-                  className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:text-white mt-1"
-                  value={editFields.category}
-                  onChange={e => handleFieldChange('category', e.target.value)}
-                  disabled={saving}
-                />
-              ) : (
-                <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.category || 'N/A'}</span>
-              )}
-            </div>
-            {/* Tags */}
-            <div className="mt-2">
-              <span className="font-semibold">Tags:</span>{" "}
-              {editMode ? (
-                <input
-                  className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:text-white mt-1"
-                  value={typeof editFields.tags === 'string' ? editFields.tags : (editFields.tags || []).join(', ')}
-                  onChange={e => handleFieldChange('tags', e.target.value)}
-                  disabled={saving}
-                  placeholder="Comma-separated tags"
-                />
-              ) : (
-                <span className="ml-1 text-gray-700 dark:text-gray-200">{(incident.tags || []).join(', ') || 'None'}</span>
-              )}
+              <span className="font-semibold">Urgency:</span>{" "}
+              <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.urgency || 'N/A'}</span>
             </div>
             {/* Team */}
             <div className="mt-2">
@@ -535,12 +580,12 @@ const IncidentDetails = () => {
                   disabled={saving}
                 >
                   <option value="">Select team</option>
-                  {teams.map((team) => (
-                    <option key={team._id} value={team._id}>{team.name}</option>
-                  ))}
+                  {teamOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               ) : (
-                <span className="ml-1 text-gray-700 dark:text-gray-200">{teams.find(t => t._id === (incident.team || editFields.team))?.name || 'N/A'}</span>
+                <span className="ml-1 text-gray-700 dark:text-gray-200">
+                  {incident.team?.name || teams.find(t => t._id === (incident.team?._id || incident.team))?.name || 'N/A'}
+                </span>
               )}
             </div>
             {editMode && (
@@ -565,44 +610,21 @@ const IncidentDetails = () => {
           </div>
           <div>
             <span className="font-semibold">Assigned To:</span>
-            {editMode && user?.role === "admin" ? (
+            {editMode ? (
               <select
-                className="ml-2 px-2 py-1 rounded border dark:bg-gray-800 dark:text-white"
-                value={incident.assignedTo?._id || ""}
-                onChange={e => handleAssign(e.target.value)}
-                disabled={assigning}
+                className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:text-white mt-1"
+                value={editFields.assignedTo}
+                onChange={e => handleFieldChange('assignedTo', e.target.value)}
+                disabled={saving}
               >
                 <option value="">Unassigned</option>
-                {users.map((u) => (
-                  <option key={u._id} value={u._id}>{u.email} {u.role === "admin" ? "(admin)" : ""}</option>
-                ))}
+                {userOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
             ) : incident.assignedTo ? (
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800">
-                  {getInitials(incident.assignedTo.email)}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm text-gray-800 dark:text-gray-200">{incident.assignedTo.email}</span>
-                  {incident.assignedTo.role && (
-                    <span className={`text-xs font-medium px-2 py-0.5 mt-1 w-fit rounded-full ${
-                      incident.assignedTo.role === "admin"
-                        ? "bg-purple-100 dark:bg-purple-900 dark:text-purple-200 text-purple-800"
-                        : "bg-green-100 dark:bg-green-900 dark:text-green-200 text-green-800"
-                    }`}>
-                      {incident.assignedTo.role}
-                    </span>
-                  )}
-                  {onCallUserForTeam && incident.assignedTo && incident.assignedTo._id === onCallUserForTeam._id && (
-                    <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full mt-1" title="Assigned to current on-call user">On-Call</span>
-                  )}
-                </div>
-              </div>
+              <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.assignedTo.name || incident.assignedTo.email}</span>
             ) : (
-              <span className="ml-2 text-gray-500">Unassigned</span>
+              <span className="ml-1 text-gray-500">Unassigned</span>
             )}
-            {assigning && <span className="ml-2 text-xs text-blue-600">Assigning...</span>}
-            {assignError && <span className="ml-2 text-xs text-red-600">{assignError}</span>}
           </div>
           <div>
             <span className="font-semibold">Created By:</span>
@@ -650,6 +672,35 @@ const IncidentDetails = () => {
               Mark as Closed
             </button>
           )}
+          {/* Incident Type */}
+          <div className="mt-2">
+            <span className="font-semibold">Incident Type:</span>{" "}
+            <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.incidentType || 'N/A'}</span>
+          </div>
+          {/* Impacted Service */}
+          <div className="mt-2">
+            <span className="font-semibold">Impacted Service:</span>{" "}
+            <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.impactedService || 'N/A'}</span>
+          </div>
+          {/* Priority */}
+          <div className="mt-2">
+            <span className="font-semibold">Priority:</span>{" "}
+            <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.priority || 'N/A'}</span>
+          </div>
+          {/* Additional Responders */}
+          <div className="mt-2">
+            <span className="font-semibold">Additional Responders:</span>{" "}
+            <span className="ml-1 text-gray-700 dark:text-gray-200">{(incident.responders || []).map(u => u.name || u.email).join(', ') || 'None'}</span>
+          </div>
+          {/* Meeting URL */}
+          <div className="mt-2">
+            <span className="font-semibold">Meeting URL:</span>{" "}
+            {incident.meetingUrl ? (
+              <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline">{incident.meetingUrl}</a>
+            ) : (
+              <span className="ml-1 text-gray-500">N/A</span>
+            )}
+          </div>
         </div>
         {/* Right Panel: Details & Comments */}
         <div className="md:w-2/3 w-full flex flex-col gap-6">

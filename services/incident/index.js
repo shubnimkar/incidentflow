@@ -10,6 +10,7 @@ require("dotenv").config();
 
 
 require("./models/User"); // 👈 register the User model
+require("./models/Team");
 
 dotenv.config();
 const app = express();

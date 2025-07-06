@@ -43,7 +43,12 @@ const incidentSchema = new mongoose.Schema(
     severity: {
       type: String,
       enum: ["low", "moderate", "high", "critical"],
-      required: true,
+      required: false,
+    },
+    urgency: {
+      type: String,
+      enum: ["High", "Low"],
+      required: false,
     },
     status: {
       type: String,
@@ -76,6 +81,23 @@ const incidentSchema = new mongoose.Schema(
     attachments: [attachmentSchema],
     // Add archivedAt timestamp for archival tracking
     archivedAt: { type: Date },
+    // PagerDuty-style fields
+    incidentType: {
+      type: String,
+    },
+    impactedService: {
+      type: String,
+    },
+    priority: {
+      type: String,
+    },
+    responders: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }],
+    meetingUrl: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
