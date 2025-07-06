@@ -55,6 +55,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaCalendarAlt />,
       adminOnly: true,
     },
+    {
+      label: "Closed Cases",
+      path: "/closed-cases",
+      icon: <FaClock />,
+      adminOnly: true,
+    },
   ];
 
   const handleLogout = () => {
@@ -106,26 +112,30 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
             </div>
           )}
           <ul className={`space-y-1 ${!collapsed ? 'ml-4' : ''}`}>
-            <li>
-              <Link
-                to="/users"
-                className={location.pathname.startsWith("/users") ? activeClass : inactiveClass}
-                title="Users"
-              >
-                <span className="mr-2"><FaUserFriends /></span>
-                {!collapsed && "Users"}
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/teams"
-                className={location.pathname.startsWith("/teams") ? activeClass : inactiveClass}
-                title="Teams"
-              >
-                <span className="mr-2"><FaUsers /></span>
-                {!collapsed && "Teams"}
-              </Link>
-            </li>
+            {user?.role === 'admin' && (
+              <li>
+                <Link
+                  to="/users"
+                  className={location.pathname.startsWith("/users") ? activeClass : inactiveClass}
+                  title="Users"
+                >
+                  <span className="mr-2"><FaUserFriends /></span>
+                  {!collapsed && "Users"}
+                </Link>
+              </li>
+            )}
+            {user?.role === 'admin' && (
+              <li>
+                <Link
+                  to="/teams"
+                  className={location.pathname.startsWith("/teams") ? activeClass : inactiveClass}
+                  title="Teams"
+                >
+                  <span className="mr-2"><FaUsers /></span>
+                  {!collapsed && "Teams"}
+                </Link>
+              </li>
+            )}
             <li>
               <Link
                 to="/profile"
