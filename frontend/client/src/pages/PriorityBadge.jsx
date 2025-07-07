@@ -2,9 +2,10 @@ import React from "react";
 
 const priorityColors = {
   P1: "bg-red-600 text-white",
-  P2: "bg-orange-400 text-black",
-  P3: "bg-yellow-400 text-black",
-  P4: "bg-green-400 text-black",
+  P2: "bg-orange-500 text-white",
+  P3: "bg-amber-400 text-black",
+  P4: "bg-green-500 text-white",
+  P5: "bg-blue-500 text-white",
   None: "bg-gray-300 text-black",
 };
 

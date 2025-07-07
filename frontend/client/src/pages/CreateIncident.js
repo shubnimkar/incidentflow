@@ -66,11 +66,11 @@ export default function CreateIncident() {
     { value: "Low", label: "Low" },
   ];
   const priorityOptions = [
-    { value: "None", label: "None" },
     { value: "P1", label: "P1" },
     { value: "P2", label: "P2" },
     { value: "P3", label: "P3" },
     { value: "P4", label: "P4" },
+    { value: "P5", label: "P5" },
   ];
   const userOptions = users.map((u) => ({
     value: u._id,
@@ -193,7 +193,7 @@ export default function CreateIncident() {
             <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Priority</label>
             <Select
               options={priorityOptions}
-              value={form.priority}
+              value={form.priority || priorityOptions[2]}
               onChange={option => handleChange("priority", option)}
               isSearchable
               className="react-select-container"

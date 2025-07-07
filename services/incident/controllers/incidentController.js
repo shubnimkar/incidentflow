@@ -123,7 +123,7 @@ const assignIncident = async (req, res) => {
     ).populate("assignedTo", "email name");
 
     // Log audit
-    await logAudit("assigned incident", req.user.id, id);
+    await logAudit("assigned incident", req.user.id, id, { field: 'assignedTo', oldValue: incident.assignedTo, newValue: assignedTo });
 
     // Temporarily remove email sending
     // if (user.email) {
@@ -146,6 +146,17 @@ const assignIncident = async (req, res) => {
   }
 };
 
+// Helper to canonicalize values for comparison
+function canonicalize(val) {
+  if (Array.isArray(val)) {
+    return val.map(v => (typeof v === 'object' ? v._id || v.id : v)).sort();
+  }
+  if (val && typeof val === 'object') {
+    return val._id || val.id || val;
+  }
+  return val;
+}
+
 updateIncident = async (req, res) => {
   try {
     const { id } = req.params;
@@ -157,18 +168,36 @@ updateIncident = async (req, res) => {
     if (updates.responders && !Array.isArray(updates.responders)) {
       updates.responders = [updates.responders];
     }
+    const incident = await Incident.findById(id);
+    if (!incident) {
+      return res.status(404).json({ message: "Incident not found" });
+    }
+    // Track all relevant fields
+    const fieldsToTrack = [
+      "title", "description", "urgency", "status", "assignedTo", "team",
+      "incidentType", "impactedService", "priority", "responders", "meetingUrl"
+    ];
+    for (const field of fieldsToTrack) {
+      const oldValueCanonical = canonicalize(incident[field]);
+      const newValueCanonical = canonicalize(updates[field]);
+      const changed = JSON.stringify(oldValueCanonical) !== JSON.stringify(newValueCanonical);
+      if (changed && updates[field] !== undefined) {
+        await logAudit(
+          "updated field",
+          req.user.id,
+          id,
+          { field, oldValue: incident[field], newValue: updates[field] }
+        );
+      }
+    }
+    // Now update the incident
     const updatedIncident = await Incident.findByIdAndUpdate(id, updates, { new: true })
       .populate("createdBy assignedTo", "email name")
       .populate("responders", "name email")
       .populate("team", "name");
-
     if (!updatedIncident) {
       return res.status(404).json({ message: "Incident not found" });
     }
-
-    // Log audit
-    await logAudit("updated incident", req.user.id, id);
-
     // Send notification email to assigned user if present (wrapped in try-catch to prevent email errors from affecting the update)
     if (updatedIncident.assignedTo && updatedIncident.assignedTo.email) {
       try {
@@ -189,7 +218,6 @@ updateIncident = async (req, res) => {
         // Don't fail the request if email sending fails
       }
     }
-
     res.json(updatedIncident);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -215,7 +243,7 @@ const addComment = async (req, res) => {
     await incident.save();
 
     // Log audit
-    await logAudit("added comment", userId, incidentId);
+    await logAudit("added comment", userId, incidentId, { comment: message });
 
     const updatedIncident = await Incident.findById(incidentId)
       .populate("createdBy", "email")
@@ -254,15 +282,16 @@ const uploadAttachment = async (req, res) => {
     const incident = await Incident.findById(req.params.id);
     if (!incident) return res.status(404).json({ message: "Incident not found" });
     const fileUrl = `/uploads/incident-attachments/${req.file.filename}`;
+    const customFilename = req.body.filename;
     incident.attachments.push({
-      filename: req.file.originalname,
+      filename: customFilename || req.file.originalname,
       url: fileUrl,
       uploadedBy: req.user.id,
       uploadedAt: new Date(),
     });
     await incident.save();
     // Log audit
-    await logAudit("uploaded attachment", req.user.id, req.params.id);
+    await logAudit("uploaded attachment", req.user.id, req.params.id, { filename: customFilename || req.file.originalname });
     const updatedIncident = await Incident.findById(req.params.id)
       .populate("createdBy", "email")
       .populate("assignedTo", "email")
@@ -276,8 +305,8 @@ const uploadAttachment = async (req, res) => {
 };
 
 // Helper to create audit log
-async function logAudit(action, userId, incidentId) {
-  await AuditLog.create({ action, performedBy: userId, incident: incidentId });
+async function logAudit(action, userId, incidentId, details = null) {
+  await AuditLog.create({ action, performedBy: userId, incident: incidentId, details });
 }
 
 // Edit a comment

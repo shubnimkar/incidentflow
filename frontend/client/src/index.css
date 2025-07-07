@@ -27,3 +27,51 @@
 .animate-fadein {
   animation: fadein 0.5s;
 }
+
+/* PagerDuty-inspired color scheme */
+:root {
+  --if-primary: #1976d2;      /* Blue (primary accent) */
+  --if-primary-hover: #1565c0;
+  --if-success: #388e3c;      /* Green (success) */
+  --if-warning: #ff9800;      /* Orange (warning/anomaly) */
+  --if-warning-bg: #fff3e0;
+  --if-success-bg: #e8f5e9;
+  --if-card-bg: #fff;         /* Card background */
+  --if-page-bg: #f7f7f9;      /* Page background */
+  --if-border: #e0e0e0;       /* Light border */
+  --if-text-main: #212121;    /* Main text */
+  --if-text-meta: #757575;    /* Meta/secondary text */
+}
+
+body {
+  background: var(--if-page-bg);
+  color: var(--if-text-main);
+}
+
+.card {
+  background: var(--if-card-bg);
+  border: 1px solid var(--if-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.btn-primary {
+  background: var(--if-primary);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--if-primary-hover);
+}
+
+.badge-success {
+  background: var(--if-success-bg);
+  color: var(--if-success);
+}
+.badge-warning {
+  background: var(--if-warning-bg);
+  color: var(--if-warning);
+}
+
+.text-meta {
+  color: var(--if-text-meta);
+}
