@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { incidentApi } from "../services/api";
 import { Link } from "react-router-dom";
+import PriorityBadge from "./PriorityBadge";
 
 const ClosedCases = () => {
   const [incidents, setIncidents] = useState([]);
@@ -47,7 +48,6 @@ const ClosedCases = () => {
             <thead>
               <tr>
                 <th className="px-4 py-2 text-left">Title</th>
-                <th className="px-4 py-2 text-left">Severity</th>
                 <th className="px-4 py-2 text-left">Team</th>
                 <th className="px-4 py-2 text-left">Closed At</th>
                 <th className="px-4 py-2 text-left">Actions</th>
@@ -57,7 +57,6 @@ const ClosedCases = () => {
               {filtered.map(incident => (
                 <tr key={incident._id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
                   <td className="px-4 py-2 font-medium">{incident.title}</td>
-                  <td className="px-4 py-2 capitalize">{incident.severity}</td>
                   <td className="px-4 py-2">{incident.team || "-"}</td>
                   <td className="px-4 py-2">{incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : "-"}</td>
                   <td className="px-4 py-2">
