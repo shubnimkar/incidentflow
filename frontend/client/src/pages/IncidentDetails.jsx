@@ -4,7 +4,7 @@ import { incidentApi, userApi, onCallApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 //import 'emoji-mart/dist/emoji-mart.css';
-import { FaRegEdit, FaTrashAlt } from 'react-icons/fa';
+import { FaRegEdit, FaTrashAlt, FaFilePdf, FaFileImage, FaFileAlt, FaFile, FaDownload } from 'react-icons/fa';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { MdAdd } from 'react-icons/md';
@@ -49,14 +49,108 @@ const serviceOptions = [
   { value: "Other", label: "Other" },
 ];
 const priorityOptions = [
-  { value: "None", label: "None" },
   { value: "P1", label: "P1" },
   { value: "P2", label: "P2" },
   { value: "P3", label: "P3" },
   { value: "P4", label: "P4" },
+  { value: "P5", label: "P5" },
 ];
 
 const BACKEND_URL = "http://localhost:5001";
+
+const getInitials = (email) => {
+  if (!email) return "U";
+  return email
+    .split("@")[0]
+    .split(/[^a-zA-Z]/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+};
+
+const getStatusBadgeClass = (status) => {
+  switch (status) {
+    case 'open':
+      return 'badge-warning';
+    case 'in_progress':
+      return 'badge-warning';
+    case 'resolved':
+      return 'badge-success';
+    case 'closed':
+      return 'text-meta bg-gray-100 border border-gray-200';
+    default:
+      return 'text-meta bg-gray-100 border border-gray-200';
+  }
+};
+
+const IncidentHeader = ({ incident, onEdit, onClose, onEscalate, editMode, saving, onSave, onCancel, canEdit }) => (
+  <div className="bg-white rounded-xl shadow flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-8 border border-gray-100 mb-8 card">
+    {/* Left: Main Info */}
+    <div className="flex-1 min-w-0 flex flex-col gap-2">
+      {/* Title and badges */}
+      <div className="flex items-center gap-4 flex-wrap mb-1">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--if-text-main)] truncate flex items-center gap-2">
+          {incident?.title}
+        </h1>
+        {incident?.status && (
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(incident.status)}`}>{incident.status.replace('_', ' ')}</span>
+        )}
+        {incident?.priority && <span><PriorityBadge priority={incident.priority} /></span>}
+      </div>
+      {/* Commander */}
+      {incident?.assignedTo && (
+        <div className="flex items-center gap-2 group mb-1">
+          <span className="w-9 h-9 rounded-full bg-blue-200 flex items-center justify-center text-blue-800 font-bold text-lg border-2 border-white shadow group-hover:ring-2 group-hover:ring-blue-400 transition">
+            {incident.assignedTo.name?.[0] || getInitials(incident.assignedTo.email)}
+          </span>
+          <span className="text-base font-medium text-[var(--if-text-main)] group-hover:underline cursor-pointer" title={incident.assignedTo.email}>
+            {incident.assignedTo.name || incident.assignedTo.email}
+          </span>
+          <span className="text-xs text-meta ml-2">Incident Commander</span>
+        </div>
+      )}
+      {/* Meta info row */}
+      <div className="flex flex-wrap gap-4 text-xs text-meta bg-gray-50 rounded px-3 py-1">
+        <span>ID: {incident?._id}</span>
+        <span>Created at: {incident?.createdAt ? new Date(incident.createdAt).toLocaleString() : 'N/A'}</span>
+        <span>Created by: {incident?.createdBy?.name || incident?.createdBy?.email || incident?.createdByEmail || 'N/A'}</span>
+        <span>Last updated: {incident?.updatedAt ? new Date(incident.updatedAt).toLocaleString() : 'N/A'}</span>
+      </div>
+    </div>
+    {/* Right: Actions */}
+    <div className="flex flex-col md:flex-row gap-2 flex-shrink-0 items-end md:items-center justify-end mt-4 md:mt-0">
+      {canEdit && !editMode && (
+        <button onClick={onEdit} className="inline-flex items-center gap-1 px-4 py-2 rounded-lg btn-primary font-semibold text-sm shadow transition">
+          <FaRegEdit className="mr-1" /> Edit
+        </button>
+      )}
+      {editMode && (
+        <>
+          <button onClick={onSave} className="inline-flex items-center gap-1 px-4 py-2 rounded-lg btn-primary font-semibold text-sm shadow transition" disabled={saving}>Save</button>
+          <button onClick={onCancel} className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold text-sm shadow hover:bg-gray-300 transition ml-2">Cancel</button>
+        </>
+      )}
+      {/* Add more action buttons as needed */}
+    </div>
+  </div>
+);
+
+const Card = ({ title, children, className = "" }) => (
+  <div className={`bg-white rounded-xl shadow border border-[#e5e7eb] p-6 mb-6 ${className}`}>
+    {title && <h2 className="text-lg font-semibold mb-4 text-slate-800">{title}</h2>}
+    {children}
+  </div>
+);
+
+function getFileIcon(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(ext)) return <FaFileImage className="text-blue-400" />;
+  if (["pdf"].includes(ext)) return <FaFilePdf className="text-red-500" />;
+  if (["doc", "docx", "txt", "md", "rtf"].includes(ext)) return <FaFileAlt className="text-gray-500" />;
+  return <FaFile className="text-gray-400" />;
+}
 
 const IncidentDetails = () => {
   const { id } = useParams();
@@ -107,6 +201,8 @@ const IncidentDetails = () => {
   const [assignToOnCall, setAssignToOnCall] = useState(false);
   const [onCallUser, setOnCallUser] = useState(null);
   const [onCallUserForTeam, setOnCallUserForTeam] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [customFilename, setCustomFilename] = useState("");
 
   const fetchActivity = async () => {
     setActivityLoading(true);
@@ -363,25 +459,24 @@ const IncidentDetails = () => {
     }
   };
 
-  const getInitials = (email) => {
-    if (!email) return "U";
-    return email
-      .split("@")[0]
-      .split(/[^a-zA-Z]/)
-      .filter(Boolean)
-      .map((word) => word[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  };
-
-  const handleAttachmentUpload = async (e) => {
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setSelectedFile(file);
+    const ext = file.name.split('.').pop();
+    const base = file.name.replace(new RegExp(`\\.${ext}$`), '');
+    setCustomFilename(base);
+  };
+
+  const handleAttachmentUpload = async () => {
+    if (!selectedFile) return;
     setUploading(true);
     setUploadError("");
+    const ext = selectedFile.name.split('.').pop();
+    const filename = `${customFilename}.${ext}`;
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append('file', selectedFile);
+    formData.append('filename', filename);
     try {
       const res = await incidentApi.post(`/incidents/${id}/attachments`, formData, {
         headers: { Authorization: `Bearer ${token}` },
@@ -390,11 +485,13 @@ const IncidentDetails = () => {
       fetchActivity();
       toast.success('Attachment uploaded!');
     } catch (err) {
-      setUploadError("Failed to upload attachment");
-      toast.error("Failed to upload attachment");
+      setUploadError('Failed to upload attachment');
+      toast.error('Failed to upload attachment');
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setSelectedFile(null);
+      setCustomFilename("");
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -479,225 +576,223 @@ const IncidentDetails = () => {
     }
   };
 
+  function formatValue(val, field, users, teams) {
+    if (field === 'responders' && Array.isArray(val)) {
+      return val.map(idOrObj => {
+        if (typeof idOrObj === 'object') {
+          return idOrObj.name || idOrObj.email || idOrObj._id || JSON.stringify(idOrObj);
+        }
+        const user = users.find(u => u._id === idOrObj);
+        return user ? (user.name || user.email) : idOrObj;
+      }).join(', ');
+    }
+    if (field === 'assignedTo' && val) {
+      if (typeof val === 'object') {
+        return val.name || val.email || val._id || JSON.stringify(val);
+      }
+      const user = users.find(u => u._id === val);
+      return user ? (user.name || user.email) : val;
+    }
+    if (field === 'team' && val) {
+      if (typeof val === 'object') {
+        return val.name || val._id || JSON.stringify(val);
+      }
+      const team = teams.find(t => t._id === val);
+      return team ? team.name : val;
+    }
+    if (Array.isArray(val)) {
+      return val.map(v => v?.name || v?.email || v?._id || v).join(', ');
+    }
+    if (val && typeof val === 'object') {
+      return val.name || val.email || val._id || JSON.stringify(val);
+    }
+    return String(val);
+  }
+
+  function renderAuditLogDetails(a) {
+    if (!a.details) return a.action;
+    if (a.details.field && a.details.oldValue !== undefined && a.details.newValue !== undefined) {
+      return (
+        <>
+          <span className="font-semibold text-blue-700">{a.performedBy?.email || 'Someone'}</span>
+          {" changed "}
+          <span className="font-semibold capitalize">{a.details.field.replace(/([A-Z])/g, ' $1')}</span>
+          {" from "}
+          <span className="font-mono">{formatValue(a.details.oldValue, a.details.field, users, teams)}</span>
+          {" to "}
+          <span className="font-mono">{formatValue(a.details.newValue, a.details.field, users, teams)}</span>
+          {"."}
+        </>
+      );
+    }
+    if (a.details.comment) {
+      return <><span className="font-semibold text-blue-700">{a.performedBy?.email || 'Someone'}</span> added a comment: <span className="italic">"{a.details.comment}"</span></>;
+    }
+    if (a.details.filename) {
+      if (a.action === "deleted attachment") {
+        return <><span className="font-semibold text-blue-700">{a.performedBy?.email || 'Someone'}</span> deleted attachment: <span className="font-mono">{a.details.filename}</span></>;
+      }
+      return <><span className="font-semibold text-blue-700">{a.performedBy?.email || 'Someone'}</span> uploaded attachment: <span className="font-mono">{a.details.filename}</span></>;
+    }
+    // fallback
+    return a.action;
+  }
+
   if (loading) return <div className="h-screen flex items-center justify-center text-lg">Loading...</div>;
   if (!incident) return <div className="h-screen flex items-center justify-center text-lg">Incident not found</div>;
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white px-2 sm:px-6 md:px-12 py-6">
-      {/* Hero Heading */}
-      <div className="flex flex-col gap-1 mb-6">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Incident Details</h2>
-        </div>
-        <div className="h-0.5 w-32 bg-blue-100 dark:bg-gray-700 rounded-full mt-2 ml-12" />
-      </div>
-      <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-6">
-        {/* Left Panel: Summary */}
-        <div className="md:w-1/3 w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 flex flex-col gap-6 min-w-[260px]">
-          <div>
-            {editMode ? (
-              <input
-                className="w-full text-xl font-bold mb-2 border px-2 py-1 rounded dark:bg-gray-800 dark:text-white"
-                value={editFields.title}
-                onChange={e => handleFieldChange('title', e.target.value)}
-                disabled={saving}
-              />
-            ) : (
-              <h2 className="text-xl font-bold mb-2">{incident.title}</h2>
-            )}
-            <div className="flex flex-wrap gap-2 items-center mb-2">
+    <div className="min-h-screen w-full bg-[var(--if-page-bg)] text-[var(--if-text-main)] px-2 sm:px-6 md:px-12 py-4">
+      <div className="container mx-auto px-4 py-4 max-w-7xl">
+        {/* Header */}
+        <IncidentHeader
+          incident={incident}
+          onEdit={handleEdit}
+          onClose={() => {}}
+          onEscalate={() => {}}
+          editMode={editMode}
+          saving={saving}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          canEdit={user && (user.role === 'admin' || user._id === incident?.createdBy?._id)}
+        />
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Left column: Details, Participants, Attachments */}
+          <div className="flex-1 min-w-0">
+            <Card title="Details" className="card">
+              {/* Title */}
               {editMode ? (
-                <select
-                  className="px-3 py-1 rounded-full text-xs font-semibold border dark:bg-gray-800 dark:text-white"
-                  value={editFields.status}
-                  onChange={e => handleFieldChange('status', e.target.value)}
-                  disabled={saving}
-                >
-                  {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-              ) : (
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${
-                  incident.status === "open"
-                    ? "bg-green-600"
-                    : incident.status === "in_progress"
-                    ? "bg-yellow-500"
-                    : "bg-gray-600"
-                }`}>
-                  {incident.status.replace("_", " ").toUpperCase()}
-                </span>
-              )}
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
-                ID: {incident._id}
-              </span>
-            </div>
-            {/* Urgency */}
-            <div className="mt-2">
-              <span className="font-semibold">Urgency:</span>{" "}
-              {editMode ? (
-                <select
-                  className="px-3 py-1 rounded-full text-xs font-semibold border dark:bg-gray-800 dark:text-white"
-                  value={editFields.urgency}
-                  onChange={e => handleFieldChange('urgency', e.target.value)}
-                  disabled={saving}
-                >
-                  {urgencyOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-              ) : (
-                <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.urgency || 'N/A'}</span>
-              )}
-            </div>
-            {/* Team */}
-            <div className="mt-2">
-              <span className="font-semibold">Team:</span>{" "}
-              {editMode ? (
-                <select
-                  className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:text-white mt-1"
-                  value={editFields.team}
-                  onChange={e => handleFieldChange('team', e.target.value)}
-                  disabled={saving}
-                >
-                  <option value="">Select team</option>
-                  {teamOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-              ) : (
-                <span className="ml-1 text-gray-700 dark:text-gray-200">
-                  {incident.team?.name || teams.find(t => t._id === (incident.team?._id || incident.team))?.name || 'N/A'}
-                </span>
-              )}
-            </div>
-            {editMode && (
-              <div className="flex items-center gap-2 mt-2">
                 <input
-                  type="checkbox"
-                  id="assignToOnCall"
-                  checked={assignToOnCall}
-                  onChange={e => setAssignToOnCall(e.target.checked)}
-                  disabled={!editFields.team}
+                  className="w-full text-2xl font-bold mb-3 border px-2 py-1 rounded"
+                  value={editFields.title}
+                  onChange={e => handleFieldChange('title', e.target.value)}
+                  disabled={saving}
                 />
-                <label htmlFor="assignToOnCall" className="text-sm text-gray-700 dark:text-gray-200">Assign to current on-call for team</label>
-                {assignToOnCall && editFields.team && (
-                  <span className="text-xs ml-2">
-                    {onCallUser
-                      ? `On-Call: ${onCallUser.name || onCallUser.email}`
-                      : "No on-call user found"}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+              ) : (
+                <h2 className="text-2xl font-bold mb-3">{incident?.title}</h2>
+              )}
+              {/* Description */}
+              {editMode ? (
+                <textarea
+                  className="w-full border rounded-lg p-2 min-h-[80px] mb-4"
+                  value={editFields.description}
+                  onChange={e => handleFieldChange('description', e.target.value)}
+                  disabled={saving}
+                />
+              ) : (
+                <p className="text-meta mb-4 whitespace-pre-line">{incident?.description}</p>
+              )}
+              {/* Main fields grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                {/* Incident Type */}
+                <div>
+                  <span className="font-semibold">Incident Type:</span>{' '}
+              {editMode ? (
+                <select
+                      className="w-full px-3 py-1 rounded border mt-1"
+                      value={editFields.incidentType}
+                      onChange={e => handleFieldChange('incidentType', e.target.value)}
+                  disabled={saving}
+                >
+                      {incidentTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              ) : (
+                    <span className="ml-1">{incident?.incidentType}</span>
+              )}
+            </div>
+                {/* Impacted Service */}
+                <div>
+                  <span className="font-semibold">Impacted Service:</span>{' '}
+              {editMode ? (
+                <select
+                      className="w-full px-3 py-1 rounded border mt-1"
+                      value={editFields.impactedService}
+                      onChange={e => handleFieldChange('impactedService', e.target.value)}
+                  disabled={saving}
+                >
+                      {serviceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              ) : (
+                    <span className="ml-1">{incident?.impactedService}</span>
+              )}
+            </div>
+                {/* Urgency */}
+                <div>
+                  <span className="font-semibold">Urgency:</span>{' '}
+              {editMode ? (
+                <select
+                      className="w-full px-3 py-1 rounded border mt-1"
+                      value={editFields.urgency}
+                      onChange={e => handleFieldChange('urgency', e.target.value)}
+                  disabled={saving}
+                >
+                      {urgencyOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              ) : (
+                    <span className="ml-1">{incident?.urgency}</span>
+              )}
+            </div>
+                {/* Priority */}
           <div>
-            <span className="font-semibold">Assigned To:</span>
+                  <span className="font-semibold">Priority:</span>{' '}
             {editMode ? (
               <select
-                className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:text-white mt-1"
-                value={editFields.assignedTo}
-                onChange={e => handleFieldChange('assignedTo', e.target.value)}
+                      className="w-full px-3 py-1 rounded border mt-1"
+                      value={editFields.priority}
+                      onChange={e => handleFieldChange('priority', e.target.value)}
                 disabled={saving}
               >
-                <option value="">Unassigned</option>
-                {userOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      {priorityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
-            ) : incident.assignedTo ? (
-              <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.assignedTo.name || incident.assignedTo.email}</span>
             ) : (
-              <span className="ml-1 text-gray-500">Unassigned</span>
+                    <span className="ml-1"><PriorityBadge priority={incident?.priority} /></span>
             )}
           </div>
+                {/* Incident Commander */}
           <div>
-            <span className="font-semibold">Created By:</span>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="w-9 h-9 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800">
-                {getInitials(incident.createdBy?.email || incident.createdByEmail)}
-              </div>
-              <span className="text-sm text-gray-800 dark:text-gray-200">{incident.createdBy?.email || incident.createdByEmail}</span>
-            </div>
-          </div>
-          <div className="space-y-1">
-            <p><span className="font-semibold">Created At:</span> {incident.createdAt && !isNaN(Date.parse(incident.createdAt)) ? new Date(incident.createdAt).toLocaleString() : "N/A"}</p>
-            <p><span className="font-semibold">Last Updated:</span> {new Date(incident.updatedAt).toLocaleString()}</p>
-          </div>
-          {/* Quick Actions Placeholder */}
-          {canEdit && (
-            <div className="flex gap-2 mt-2">
+                  <span className="font-semibold">Incident Commander:</span>{' '}
               {editMode ? (
-                <>
-                  <button onClick={handleSave} disabled={saving} className="px-3 py-1 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition disabled:opacity-60">{saving ? "Saving..." : "Save"}</button>
-                  <button onClick={handleCancel} disabled={saving} className="px-3 py-1 rounded-lg bg-gray-100 text-gray-700 font-semibold text-xs hover:bg-gray-200 transition">Cancel</button>
-                </>
+                    <Select
+                      className="w-full mt-1"
+                      value={users.find(u => u._id === editFields.assignedTo) ? { value: editFields.assignedTo, label: users.find(u => u._id === editFields.assignedTo)?.name || users.find(u => u._id === editFields.assignedTo)?.email } : null}
+                      onChange={opt => handleFieldChange('assignedTo', opt ? opt.value : '')}
+                      options={users.map(u => ({ value: u._id, label: u.name || u.email }))}
+                      isClearable
+                      isDisabled={saving}
+                    />
               ) : (
-                <button onClick={handleEdit} className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition">Edit</button>
-              )}
-              {error && <span className="text-xs text-red-600 ml-2">{error}</span>}
+                    <span className="ml-1">{users.find(u => u._id === (incident?.assignedTo?._id || incident?.assignedTo))?.name || users.find(u => u._id === (incident?.assignedTo?._id || incident?.assignedTo))?.email || 'Unassigned'}</span>
+                  )}
             </div>
-          )}
-          {!editMode && incident.status === 'resolved' && user?.role === 'admin' && (
-            <button
-              className="mt-2 w-full px-3 py-2 rounded-lg bg-green-600 text-white font-semibold text-xs hover:bg-green-700 transition"
-              onClick={() => setConfirmModal({
-                open: true,
-                title: 'Mark Incident as Closed?',
-                description: 'Are you sure you want to mark this incident as closed? This action cannot be undone.',
-                onConfirm: async () => {
-                  await incidentApi.put(`/incidents/${incident._id}`, { status: 'closed' }, { headers: { Authorization: `Bearer ${token}` } });
-                  const res = await incidentApi.get(`/incidents/${incident._id}`, { headers: { Authorization: `Bearer ${token}` } });
-                  setIncident(res.data);
-                  fetchActivity();
-                  toast.success('Incident marked as closed!');
-                }
-              })}
-            >
-              Mark as Closed
-            </button>
-          )}
-          {/* Incident Type */}
-          <div className="mt-2">
-            <span className="font-semibold">Incident Type:</span>{" "}
-            <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.incidentType || 'N/A'}</span>
-          </div>
-          {/* Impacted Service */}
-          <div className="mt-2">
-            <span className="font-semibold">Impacted Service:</span>{" "}
-            <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.impactedService || 'N/A'}</span>
-          </div>
-          {/* Priority */}
-          <div className="mt-2">
-            <span className="font-semibold">Priority:</span>{" "}
-            <PriorityBadge priority={incident.priority || "None"} />
-          </div>
-          {/* Additional Responders */}
-          <div className="mt-2">
-            <span className="font-semibold">Additional Responders:</span>{" "}
+                {/* Team */}
+                <div>
+                  <span className="font-semibold">Team:</span>{' '}
             {editMode ? (
-              <Select
-                isMulti
-                options={userOptions}
-                value={userOptions.filter(opt => editFields.responders.some(u => u._id === opt.value))}
-                onChange={options => handleFieldChange('responders', options.map(opt => users.find(u => u._id === opt.value)))}
-                className="react-select-container mt-1"
-                classNamePrefix="react-select"
-                isDisabled={saving}
-                placeholder="Select additional responders..."
-              />
+                    <Select
+                      className="w-full mt-1"
+                      value={teams.find(t => t._id === editFields.team) ? { value: editFields.team, label: teams.find(t => t._id === editFields.team)?.name } : null}
+                      onChange={opt => handleFieldChange('team', opt ? opt.value : '')}
+                      options={teams.map(t => ({ value: t._id, label: t.name }))}
+                      isClearable
+                      isDisabled={saving}
+                    />
             ) : (
-              <span className="ml-1 text-gray-700 dark:text-gray-200">{(incident.responders || []).map(u => u.name || u.email).join(', ') || 'None'}</span>
+                    <span className="ml-1">{teams.find(t => t._id === (incident?.team?._id || incident?.team))?.name || 'N/A'}</span>
             )}
           </div>
           {/* Meeting URL */}
-          <div className="mt-2">
-            <span className="font-semibold">Meeting URL:</span>{" "}
+                <div className="md:col-span-2">
+                  <span className="font-semibold">Meeting URL:</span>{' '}
             {editMode ? (
               <input
-                className="w-full border rounded-lg p-2 dark:bg-gray-800 dark:text-white"
+                      className="w-full border rounded-lg p-2 mt-1"
                 value={editFields.meetingUrl}
                 onChange={e => handleFieldChange('meetingUrl', e.target.value)}
                 disabled={saving}
                 placeholder="https://example.com/meeting"
               />
             ) : (
-              incident.meetingUrl ? (
+                    incident?.meetingUrl ? (
                 <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline">{incident.meetingUrl}</a>
               ) : (
                 <span className="ml-1 text-gray-500">N/A</span>
@@ -705,25 +800,223 @@ const IncidentDetails = () => {
             )}
           </div>
         </div>
-        {/* Right Panel: Details & Comments */}
-        <div className="md:w-2/3 w-full flex flex-col gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border border-gray-200 dark:border-gray-700 mb-2">
-            <h3 className="text-lg font-semibold mb-2">Description</h3>
+            </Card>
+            <Card title="Additional Responders">
             {editMode ? (
-              <textarea
-                className="w-full border rounded-lg p-2 dark:bg-gray-800 dark:text-white min-h-[80px]"
-                value={editFields.description}
-                onChange={e => handleFieldChange('description', e.target.value)}
-                disabled={saving}
+                <Select
+                  isMulti
+                  className="w-full"
+                  value={users.filter(u => editFields.responders.includes(u._id)).map(u => ({
+                    value: u._id,
+                    label: u.name || u.email
+                  }))}
+                  onChange={options =>
+                    handleFieldChange(
+                      'responders',
+                      options ? options.map(opt => opt.value) : []
+                    )
+                  }
+                  options={users.map(u => ({
+                    value: u._id,
+                    label: u.name || u.email
+                  }))}
+                  isDisabled={saving}
+                  placeholder="Add additional responders..."
               />
             ) : (
-              <p className="text-gray-700 dark:text-gray-300 mb-2">{incident.description}</p>
-            )}
+                <div className="flex flex-wrap gap-3">
+                  {incident?.responders && incident.responders.length > 0
+                    ? incident.responders.map((u, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full">
+                          <span className="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-blue-800 font-bold text-xs">
+                            {u.name?.[0] || getInitials(u.email)}
+                          </span>
+                          <span className="text-xs">{u.name || u.email}</span>
+                        </div>
+                      ))
+                    : <span className="text-gray-500">No additional responders</span>
+                  }
+                </div>
+              )}
+            </Card>
+            <Card title="Attachments" className="card">
+              <div className="mb-4 flex flex-col gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  disabled={uploading}
+                />
+                {selectedFile && (
+                  <div className="flex gap-2 items-center mt-2">
+                    <input
+                      type="text"
+                      value={customFilename}
+                      onChange={e => setCustomFilename(e.target.value)}
+                      className="border rounded px-2 py-1"
+                    />
+                    <span>.{selectedFile.name.split('.').pop()}</span>
+                    <button
+                      onClick={handleAttachmentUpload}
+                      className="btn-primary px-3 py-1 rounded font-semibold transition"
+                      disabled={uploading || !customFilename}
+                    >
+                      Upload
+                    </button>
+                    <button
+                      onClick={() => { setSelectedFile(null); setCustomFilename(""); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                      className="ml-2 px-2 py-1 rounded bg-gray-200 text-xs text-gray-700 hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold mb-2">Comments</h3>
-            {incident.comments.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400">No comments yet.</p>
+                )}
+                {uploading && <span className="text-xs text-blue-600">Uploading...</span>}
+                {uploadError && <span className="text-xs text-red-600">{uploadError}</span>}
+              </div>
+              {/* Attachments List */}
+              {incident?.attachments && incident.attachments.length > 0 ? (
+                <ul className="space-y-2">
+                  {incident.attachments.map((att, i) => {
+                    const filename = att.filename || att.url.split("/").pop();
+                    const ext = filename.split('.').pop();
+                    return (
+                      <li key={i} className="flex items-center gap-4 p-3 rounded-lg bg-gray-50 border border-gray-200 shadow-sm hover:shadow-md transition group">
+                        <div className="text-2xl flex-shrink-0">
+                          {getFileIcon(filename)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold truncate">
+                            <a
+                              href={BACKEND_URL + att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:underline text-blue-700"
+                              title="Open in new tab"
+                            >
+                              {filename.replace(new RegExp(`\\.${ext}$`), '')}
+                              <span className="text-xs text-gray-400 font-normal">.{ext}</span>
+                            </a>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            Uploaded by {att.uploadedBy?.email || "Unknown"} · {att.uploadedAt ? new Date(att.uploadedAt).toLocaleString() : ""}
+                          </div>
+                        </div>
+                        <a
+                          href={BACKEND_URL + att.url}
+                          download
+                          className="p-2 rounded-full hover:bg-blue-100 text-blue-600"
+                          title="Download"
+                        >
+                          <FaDownload />
+                        </a>
+                        {user?.role === 'admin' && (
+                          <button
+                            onClick={() => handleDeleteAttachment(att.url.split("/").pop())}
+                            disabled={deletingAttachment === att.url.split("/").pop()}
+                            className="p-2 rounded-full hover:bg-[var(--if-warning-bg)] text-[var(--if-warning)] disabled:opacity-60"
+                            title="Delete"
+                          >
+                            <FaTrashAlt />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-meta">No attachments yet.</p>
+              )}
+            </Card>
+          </div>
+          {/* Right column: Activity/Comments */}
+          <div className="w-full md:w-2/5">
+            <Card title="Activity & Comments" className="card">
+              {/* Activity Feed */}
+              <div className="mb-6 max-h-64 overflow-y-auto">
+                <h3 className="text-md font-semibold mb-2">Activity Feed</h3>
+                {activityLoading ? (
+                  <p className="text-meta">Loading...</p>
+                ) : activityError ? (
+                  <p className="text-red-500">{activityError}</p>
+                ) : activity.length > 0 ? (
+                  <ul className="space-y-4">
+                    {[...activity].reverse().map((a, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                          {/* Icon based on action type */}
+                          {a.action.includes('status') ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          ) : a.action.includes('assign') ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V3" /></svg>
+                          ) : a.action.includes('edit') || a.action.includes('update') ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h18" /></svg>
+                          ) : a.action.includes('comment') ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8h2a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V10a2 2 0 012-2h2m4-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
+                          ) : a.action.includes('attachment') ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l7.07-7.07a4 4 0 00-5.656-5.657l-7.07 7.07a6 6 0 108.485 8.485l7.071-7.07" /></svg>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /></svg>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-gray-800">{a.performedBy?.email || 'System'}</span>
+                            <span className="text-xs text-gray-400">{new Date(a.timestamp).toLocaleString()}</span>
+                          </div>
+                          <div className="text-sm text-gray-700 mt-0.5">
+                            {renderAuditLogDetails(a)}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-meta">No activity yet.</p>
+                )}
+              </div>
+              {/* Comments Section */}
+              <div>
+                <h3 className="text-md font-semibold mb-2">Comments</h3>
+                {/* Add Comment Box at the top */}
+                <form onSubmit={handleCommentSubmit} className="mb-4 flex gap-2 relative">
+                  <div className="relative w-full">
+                    <input
+                      type="text"
+                      value={commentText}
+                      onChange={handleCommentInput}
+                      placeholder="Add a comment"
+                      className="flex-1 border p-2 rounded-lg w-full"
+                      ref={fileInputRef}
+                    />
+                    {mentionDropdown.open && mentionDropdown.options.length > 0 && (
+                      <ul
+                        className="absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded shadow z-50 max-h-48 overflow-y-auto animate-emoji-fade-scale"
+                        style={{ minWidth: 180 }}
+                      >
+                        {mentionDropdown.options.map((u, idx) => (
+                          <li
+                            key={u._id}
+                            className={`px-3 py-2 cursor-pointer text-sm hover:bg-blue-100 transition-colors ${mentionDropdown.index === idx ? "bg-blue-50" : ""}`}
+                            onClick={() => handleMentionSelect(u)}
+                          >
+                            @{u.name || u.email}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className="btn-primary px-4 py-2 rounded-lg font-semibold transition"
+                  >
+                    Submit
+                  </button>
+                </form>
+                {/* Comments List below the add comment box */}
+                {incident?.comments?.length === 0 ? (
+                  <p className="text-meta">No comments yet.</p>
             ) : (
               <ul className="space-y-3">
                 {[...incident.comments].reverse().map((c, i) => {
@@ -731,32 +1024,30 @@ const IncidentDetails = () => {
                   const canDeleteComment = user?.role === "admin";
                   const mentionsInComment = (c.mentions || []).map(mid => usersForMentions.find(u => u._id === mid));
                   const usedEmojis = Array.from(new Set((c.reactions || []).map(r => r.emoji)));
-                  console.log('Current user:', user?.id, 'Comment user:', c.user?._id, 'Can edit:', canEditComment);
-                  console.log('Comment reactions:', c.reactions, 'usersForMentions:', usersForMentions);
                   return (
                     <li
                       key={i}
-                      className="flex gap-3 items-start border p-3 rounded-xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 group relative hover:shadow-md transition-shadow"
+                          className="flex gap-3 items-start border p-3 rounded-xl bg-gray-50 group relative hover:shadow-md transition-shadow"
                       onMouseEnter={() => setHoveredCommentId(c._id)}
                       onMouseLeave={() => setHoveredCommentId(null)}
                     >
-                      <div className="w-9 h-9 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800 mt-1">
+                          <div className="w-9 h-9 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-sm font-bold border-2 border-white mt-1">
                         {getInitials(c.user?.email)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center gap-2">
-                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                              <span className="text-sm font-semibold text-gray-800 truncate">
                             {c.user?.name || c.user?.email || "Unknown User"}
                             {c.user?.role && (
-                              <em className="text-xs text-gray-500 dark:text-gray-300 ml-1">({c.user.role})</em>
+                                  <em className="text-xs text-gray-500 ml-1">({c.user.role})</em>
                             )}
                           </span>
                           <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(c.createdAt).toLocaleString()}</span>
                         </div>
                         {editingCommentId === c._id ? (
-                          <div className="flex flex-col gap-2 mt-1 border-2 border-blue-400 bg-blue-50 dark:bg-blue-900 rounded-lg p-2">
+                              <div className="flex flex-col gap-2 mt-1 border-2 border-blue-400 bg-blue-50 rounded-lg p-2">
                             <textarea
-                              className="w-full border rounded-lg p-2 dark:bg-gray-800 dark:text-white min-h-[60px] focus:ring-2 focus:ring-blue-400"
+                                  className="w-full border rounded-lg p-2 min-h-[60px] focus:ring-2 focus:ring-blue-400"
                               value={editingCommentText}
                               onChange={e => setEditingCommentText(e.target.value)}
                             />
@@ -767,7 +1058,7 @@ const IncidentDetails = () => {
                           </div>
                         ) : (
                           <Fragment>
-                            <p className="text-gray-800 dark:text-gray-100 mt-1 break-words">
+                                <p className="text-gray-800 mt-1 break-words">
                               {c.message.split(/(@[\w.-]+)/g).map((part, idx) => {
                                 if (part.startsWith("@")) {
                                   const mentioned = mentionsInComment.find(u => u && ("@" + u.email) === part);
@@ -806,7 +1097,7 @@ const IncidentDetails = () => {
                                     onClick={() => handleReact(c._id, emoji)}
                                     onMouseEnter={() => setHoveredEmoji({ commentId: c._id, emoji, users })}
                                     onMouseLeave={() => setHoveredEmoji({ commentId: null, emoji: null, users: [] })}
-                                    className={`px-2 py-1 rounded-full text-lg font-semibold transition-all duration-150 border border-transparent hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${reacted ? "bg-blue-200" : "bg-gray-100 dark:bg-gray-800"}`}
+                                        className={`px-2 py-1 rounded-full text-lg font-semibold transition-all duration-150 border border-transparent hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${reacted ? "bg-blue-200" : "bg-gray-100"}`}
                                   >
                                     {emoji} {count > 0 && <span className="text-xs font-bold">{count}</span>}
                                   </button>
@@ -882,140 +1173,10 @@ const IncidentDetails = () => {
                     </li>
                   );
                 })}
-              </ul>
-            )}
-            <form onSubmit={handleCommentSubmit} className="mt-4 flex gap-2 relative">
-              <div className="relative w-full">
-                <input
-                  type="text"
-                  value={commentText}
-                  onChange={handleCommentInput}
-                  placeholder="Add a comment"
-                  className="flex-1 border p-2 rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
-                  ref={fileInputRef}
-                />
-                {mentionDropdown.open && mentionDropdown.options.length > 0 && (
-                  <ul
-                    className="absolute left-0 top-full mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow z-50 max-h-48 overflow-y-auto animate-emoji-fade-scale"
-                    style={{ minWidth: 180 }}
-                  >
-                    {mentionDropdown.options.map((u, idx) => (
-                      <li
-                        key={u._id}
-                        className={`px-3 py-2 cursor-pointer text-sm hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors ${mentionDropdown.index === idx ? "bg-blue-50 dark:bg-blue-900" : ""}`}
-                        onClick={() => handleMentionSelect(u)}
-                      >
-                        @{u.name || u.email}
-                      </li>
-                    ))}
                   </ul>
                 )}
               </div>
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                Submit
-              </button>
-            </form>
-          </div>
-          {/* Attachments Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border border-gray-200 dark:border-gray-700 mb-2">
-            <h3 className="text-lg font-semibold mb-2">Attachments</h3>
-            <div className="mb-4 flex items-center gap-2">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleAttachmentUpload}
-                className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                disabled={uploading}
-              />
-              {uploading && <span className="text-xs text-blue-600">Uploading...</span>}
-              {uploadError && <span className="text-xs text-red-600">{uploadError}</span>}
-            </div>
-            {incident.attachments && incident.attachments.length > 0 ? (
-              <ul className="space-y-2">
-                {incident.attachments.map((att, i) => {
-                  const filename = att.url.split("/").pop();
-                  return (
-                    <li key={i} className="flex items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                      <a
-                        href={BACKEND_URL + att.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 font-medium hover:underline"
-                      >
-                        {att.filename}
-                      </a>
-                      <a
-                        href={`${BACKEND_URL}/api/incidents/${incident._id}/attachments/${encodeURIComponent(filename)}/download`}
-                        download
-                        className="ml-1 px-2 py-1 rounded bg-gray-200 dark:bg-gray-600 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500"
-                      >
-                        Download
-                      </a>
-                      <span className="text-xs text-gray-500">{att.uploadedBy?.email || "Unknown"}</span>
-                      <span className="text-xs text-gray-400">{att.uploadedAt ? new Date(att.uploadedAt).toLocaleString() : ""}</span>
-                      {canDeleteAttachment && (
-                        <button
-                          onClick={() => handleDeleteAttachment(filename)}
-                          disabled={deletingAttachment === filename}
-                          className="ml-2 px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-xs text-red-700 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 disabled:opacity-60"
-                        >
-                          {deletingAttachment === filename ? "Deleting..." : "Delete"}
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400">No attachments yet.</p>
-            )}
-          </div>
-          {/* Activity Feed / Timeline */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border border-gray-200 dark:border-gray-700 mt-4 max-h-64 overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-2">Activity Feed</h3>
-            {activityLoading ? (
-              <p className="text-gray-500 dark:text-gray-400">Loading...</p>
-            ) : activityError ? (
-              <p className="text-red-500 dark:text-red-400">{activityError}</p>
-            ) : activity.length > 0 ? (
-              <ul className="space-y-4">
-                {activity.map((a, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                      {/* Icon based on action type */}
-                      {a.action.includes('status') ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                      ) : a.action.includes('assign') ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V3" /></svg>
-                      ) : a.action.includes('edit') || a.action.includes('update') ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h18" /></svg>
-                      ) : a.action.includes('comment') ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8h2a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V10a2 2 0 012-2h2m4-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
-                      ) : a.action.includes('attachment') ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l7.07-7.07a4 4 0 00-5.656-5.657l-7.07 7.07a6 6 0 108.485 8.485l7.071-7.07" /></svg>
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /></svg>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">{a.performedBy?.email || 'System'}</span>
-                        <span className="text-xs text-gray-400">{new Date(a.timestamp).toLocaleString()}</span>
-                      </div>
-                      <div className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">
-                        {a.action}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400">No activity yet.</p>
-            )}
-          </div>
+            </Card>
         </div>
       </div>
       <ConfirmModal
@@ -1028,6 +1189,7 @@ const IncidentDetails = () => {
         title={confirmModal.title}
         description={confirmModal.description}
       />
+      </div>
     </div>
   );
 };
