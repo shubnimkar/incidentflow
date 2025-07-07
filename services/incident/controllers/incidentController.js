@@ -21,14 +21,13 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const createIncident = async (req, res) => {
-  const { title, description, severity, urgency, status, assignedTo, tags, team, category, incidentType, impactedService, priority, responders, meetingUrl } = req.body;
+  const { title, description, urgency, status, assignedTo, tags, team, category, incidentType, impactedService, priority, responders, meetingUrl } = req.body;
   const user = req.user; // ✅ this is set by verifyToken
 
   try {
     const incident = new Incident({
       title,
       description,
-      severity,
       urgency,
       status,
       assignedTo,
@@ -55,10 +54,10 @@ const createIncident = async (req, res) => {
 
 const getAllIncidents = async (req, res) => {
   try {
-    const { status, severity, assignedTo, tags, team, category } = req.query;
+    const { status, urgency, assignedTo, tags, team, category } = req.query;
     let filter = {};
     if (status) filter.status = status;
-    if (severity) filter.severity = severity;
+    if (urgency) filter.urgency = urgency;
     if (assignedTo) filter.assignedTo = assignedTo;
     if (team) filter.team = team;
     if (category) filter.category = category;
@@ -395,7 +394,7 @@ const deleteIncident = async (req, res) => {
   }
 };
 
-// Get global and per-severity overdue window (in hours)
+// Get global overdue window (in hours)
 const getOverdueWindow = async (req, res) => {
   try {
     let settings = await Settings.findOne();
@@ -404,20 +403,19 @@ const getOverdueWindow = async (req, res) => {
     }
     res.json({
       overdueWindowHours: settings.overdueWindowHours,
-      overdueWindowPerSeverity: settings.overdueWindowPerSeverity || {}
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// Update global and/or per-severity overdue window (admin only)
+// Update global overdue window (admin only)
 const updateOverdueWindow = async (req, res) => {
   try {
     if (!req.user || req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Admin access required' });
     }
-    const { overdueWindowHours, overdueWindowPerSeverity } = req.body;
+    const { overdueWindowHours } = req.body;
     let settings = await Settings.findOne();
     if (!settings) {
       settings = await Settings.create({});
@@ -428,23 +426,9 @@ const updateOverdueWindow = async (req, res) => {
       }
       settings.overdueWindowHours = overdueWindowHours;
     }
-    if (overdueWindowPerSeverity) {
-      // Validate each severity value
-      for (const key of Object.keys(overdueWindowPerSeverity)) {
-        const val = overdueWindowPerSeverity[key];
-        if (typeof val !== 'number' || val < 1 || val > 168) {
-          return res.status(400).json({ message: `Invalid value for ${key} (1-168 hours allowed)` });
-        }
-      }
-      settings.overdueWindowPerSeverity = {
-        ...settings.overdueWindowPerSeverity,
-        ...overdueWindowPerSeverity
-      };
-    }
     await settings.save();
     res.json({
       overdueWindowHours: settings.overdueWindowHours,
-      overdueWindowPerSeverity: settings.overdueWindowPerSeverity || {}
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

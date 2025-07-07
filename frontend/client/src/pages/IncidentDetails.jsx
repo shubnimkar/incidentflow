@@ -10,18 +10,14 @@ import data from '@emoji-mart/data';
 import { MdAdd } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
+import PriorityBadge from "./PriorityBadge";
+import Select from "react-select";
 
 const statusOptions = [
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
   { value: "resolved", label: "Resolved" },
   { value: "closed", label: "Closed" },
-];
-const severityOptions = [
-  { value: "critical", label: "Critical" },
-  { value: "high", label: "High" },
-  { value: "moderate", label: "Moderate" },
-  { value: "low", label: "Low" },
 ];
 const urgencyOptions = [
   { value: "High", label: "High" },
@@ -74,7 +70,6 @@ const IncidentDetails = () => {
     title: "",
     description: "",
     status: "",
-    severity: "",
     urgency: "",
     team: "",
     incidentType: "",
@@ -139,7 +134,6 @@ const IncidentDetails = () => {
           title: res.data.title,
           description: res.data.description,
           status: res.data.status,
-          severity: res.data.severity,
           urgency: res.data.urgency || "",
           team: res.data.team || "",
           incidentType: res.data.incidentType || "",
@@ -257,7 +251,6 @@ const IncidentDetails = () => {
       title: incident.title,
       description: incident.description,
       status: incident.status,
-      severity: incident.severity,
       urgency: incident.urgency || "",
       team: incident.team || "",
       incidentType: incident.incidentType || "",
@@ -536,30 +529,6 @@ const IncidentDetails = () => {
                   {incident.status.replace("_", " ").toUpperCase()}
                 </span>
               )}
-              {editMode ? (
-                <select
-                  className="px-3 py-1 rounded-full text-xs font-semibold border dark:bg-gray-800 dark:text-white"
-                  value={editFields.severity}
-                  onChange={e => handleFieldChange('severity', e.target.value)}
-                  disabled={saving}
-                >
-                  {severityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-              ) : (
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  incident.severity === "critical"
-                    ? "bg-red-600 text-white"
-                    : incident.severity === "high"
-                    ? "bg-orange-500 text-white"
-                    : incident.severity === "moderate"
-                    ? "bg-yellow-400 text-gray-900"
-                    : incident.severity === "low"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-400 text-white"
-                }`}>
-                  {incident.severity}
-                </span>
-              )}
               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
                 ID: {incident._id}
               </span>
@@ -567,7 +536,18 @@ const IncidentDetails = () => {
             {/* Urgency */}
             <div className="mt-2">
               <span className="font-semibold">Urgency:</span>{" "}
-              <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.urgency || 'N/A'}</span>
+              {editMode ? (
+                <select
+                  className="px-3 py-1 rounded-full text-xs font-semibold border dark:bg-gray-800 dark:text-white"
+                  value={editFields.urgency}
+                  onChange={e => handleFieldChange('urgency', e.target.value)}
+                  disabled={saving}
+                >
+                  {urgencyOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              ) : (
+                <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.urgency || 'N/A'}</span>
+              )}
             </div>
             {/* Team */}
             <div className="mt-2">
@@ -685,20 +665,43 @@ const IncidentDetails = () => {
           {/* Priority */}
           <div className="mt-2">
             <span className="font-semibold">Priority:</span>{" "}
-            <span className="ml-1 text-gray-700 dark:text-gray-200">{incident.priority || 'N/A'}</span>
+            <PriorityBadge priority={incident.priority || "None"} />
           </div>
           {/* Additional Responders */}
           <div className="mt-2">
             <span className="font-semibold">Additional Responders:</span>{" "}
-            <span className="ml-1 text-gray-700 dark:text-gray-200">{(incident.responders || []).map(u => u.name || u.email).join(', ') || 'None'}</span>
+            {editMode ? (
+              <Select
+                isMulti
+                options={userOptions}
+                value={userOptions.filter(opt => editFields.responders.some(u => u._id === opt.value))}
+                onChange={options => handleFieldChange('responders', options.map(opt => users.find(u => u._id === opt.value)))}
+                className="react-select-container mt-1"
+                classNamePrefix="react-select"
+                isDisabled={saving}
+                placeholder="Select additional responders..."
+              />
+            ) : (
+              <span className="ml-1 text-gray-700 dark:text-gray-200">{(incident.responders || []).map(u => u.name || u.email).join(', ') || 'None'}</span>
+            )}
           </div>
           {/* Meeting URL */}
           <div className="mt-2">
             <span className="font-semibold">Meeting URL:</span>{" "}
-            {incident.meetingUrl ? (
-              <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline">{incident.meetingUrl}</a>
+            {editMode ? (
+              <input
+                className="w-full border rounded-lg p-2 dark:bg-gray-800 dark:text-white"
+                value={editFields.meetingUrl}
+                onChange={e => handleFieldChange('meetingUrl', e.target.value)}
+                disabled={saving}
+                placeholder="https://example.com/meeting"
+              />
             ) : (
-              <span className="ml-1 text-gray-500">N/A</span>
+              incident.meetingUrl ? (
+                <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline">{incident.meetingUrl}</a>
+              ) : (
+                <span className="ml-1 text-gray-500">N/A</span>
+              )
             )}
           </div>
         </div>
@@ -971,7 +974,7 @@ const IncidentDetails = () => {
             )}
           </div>
           {/* Activity Feed / Timeline */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border border-gray-200 dark:border-gray-700 mt-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 border border-gray-200 dark:border-gray-700 mt-4 max-h-64 overflow-y-auto">
             <h3 className="text-lg font-semibold mb-2">Activity Feed</h3>
             {activityLoading ? (
               <p className="text-gray-500 dark:text-gray-400">Loading...</p>
