@@ -30,6 +30,7 @@ import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointEl
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import ConfirmModal from "../components/ConfirmModal";
+import PriorityBadge from "./PriorityBadge";
 
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement);
 
@@ -42,7 +43,6 @@ function Dashboard() {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [severityFilter, setSeverityFilter] = useState("");
   const [assignedUserFilter, setAssignedUserFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
@@ -189,16 +189,13 @@ function Dashboard() {
   const filteredIncidents = incidents.filter((incident) => {
     const matchesTitle = incident.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter ? incident.status === statusFilter : true;
-    const matchesSeverity = severityFilter
-      ? incident.severity?.toLowerCase() === severityFilter
-      : true;
     const matchesAssignedUser = assignedUserFilter
       ? incident.assignedTo?._id === assignedUserFilter
       : true;
     const matchesTag = tagFilter ? (incident.tags || []).includes(tagFilter) : true;
     const matchesTeam = teamFilter ? incident.team === teamFilter : true;
     const matchesCategory = categoryFilter ? incident.category === categoryFilter : true;
-    return matchesTitle && matchesStatus && matchesSeverity && matchesAssignedUser && matchesTag && matchesTeam && matchesCategory;
+    return matchesTitle && matchesStatus && matchesAssignedUser && matchesTag && matchesTeam && matchesCategory;
   });
 
   const statusLabels = {
@@ -250,16 +247,6 @@ function Dashboard() {
     }
   };
 
-  const getSeverityBadgeColor = (severity) => {
-    switch (severity?.toLowerCase()) {
-      case "critical": return "bg-red-500 text-white";
-      case "high": return "bg-orange-500 text-white";
-      case "moderate": return "bg-yellow-500 text-gray-800";
-      case "low": return "bg-green-500 text-white";
-      default: return "bg-gray-400 text-white";
-    }
-  };
-
   const getStatusColor = (status) => {
     switch (status) {
       case "open": return "bg-blue-100 text-blue-800 border-blue-200";
@@ -274,8 +261,6 @@ function Dashboard() {
   const openCount = incidents.filter(i => i.status === 'open').length;
   const inProgressCount = incidents.filter(i => i.status === 'in_progress').length;
   const resolvedCount = incidents.filter(i => i.status === 'resolved').length;
-  const criticalCount = incidents.filter(i => i.severity?.toLowerCase() === 'critical').length;
-  const highCount = incidents.filter(i => i.severity?.toLowerCase() === 'high').length;
   const unassignedCount = incidents.filter(i => !i.assignedTo).length;
   const overdueCount = incidents.filter(i => {
     const createdAt = new Date(i.createdAt);
@@ -439,10 +424,6 @@ function Dashboard() {
               <div className="hidden md:flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                 <span className="flex items-center space-x-1">
                   <FaBell className="text-yellow-500" />
-                  <span>{criticalCount} Critical</span>
-                </span>
-                <span className="flex items-center space-x-1">
-                  <FaClock className="text-orange-500" />
                   <span>{overdueCount} Overdue</span>
                 </span>
               </div>
@@ -479,20 +460,6 @@ function Dashboard() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Incidents</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalIncidents}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center">
-                  <FaExclamationTriangle className="text-red-600 dark:text-red-400" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Critical</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{criticalCount}</p>
               </div>
             </div>
           </div>
@@ -565,18 +532,6 @@ function Dashboard() {
               <option value="open">Open</option>
               <option value="in_progress">In Progress</option>
               <option value="resolved">Resolved</option>
-            </select>
-
-            <select
-              value={severityFilter}
-              onChange={(e) => setSeverityFilter(e.target.value)}
-              className="border px-2 py-1.5 rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-9 min-w-[120px]"
-            >
-              <option value="">All Severities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="moderate">Moderate</option>
-              <option value="low">Low</option>
             </select>
 
             <select
@@ -796,13 +751,6 @@ function Dashboard() {
                                             <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Overdue</span>
                                           )}
                                         </div>
-                                        <span className={`text-xs px-2 py-1 rounded-full font-semibold ${getSeverityBadgeColor(incident.severity)} text-white flex items-center gap-1`} title={incident.severity}>
-                                          {incident.severity === 'critical' && '🔴'}
-                                          {incident.severity === 'high' && '🟠'}
-                                          {incident.severity === 'moderate' && '🟡'}
-                                          {incident.severity === 'low' && '🟢'}
-                                          {incident.severity}
-                                        </span>
                                       </div>
                                       <div className="flex items-center gap-2 mb-2">
                                         <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow border-2 border-white dark:border-gray-800" title={incident.assignedTo?.name || incident.assignedTo?.email || 'Unassigned'}>
@@ -897,7 +845,6 @@ function Dashboard() {
                     )}
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Incident</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Severity</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Assigned To</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
@@ -939,9 +886,6 @@ function Dashboard() {
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(incident.status)}`}>{statusLabels[incident.status]}</span>
-                        </td>
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSeverityBadgeColor(incident.severity)}`}>{incident.severity}</span>
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap">
                           <div className="flex items-center">
@@ -1026,10 +970,6 @@ function Dashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Unassigned Incidents</span>
                   <span className="text-lg font-semibold text-gray-900 dark:text-white">{unassignedCount}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">High Priority</span>
-                  <span className="text-lg font-semibold text-gray-900 dark:text-white">{highCount}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Average Resolution Time</span>
