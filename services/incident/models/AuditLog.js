@@ -19,6 +19,7 @@ const auditLogSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  details: { type: mongoose.Schema.Types.Mixed },
 });
 
 module.exports = mongoose.model("AuditLog", auditLogSchema);

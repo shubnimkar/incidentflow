@@ -95,8 +95,10 @@ router.delete("/:id/attachments/:filename", verifyToken, requireAdmin, async (re
       .populate("assignedTo", "email")
       .populate("comments.user", "email role")
       .populate("attachments.uploadedBy", "email");
-    // Log audit
-    await AuditLog.create({ action: "deleted attachment", performedBy: req.user.id, incident: req.params.id });
+    // Find the display filename for the deleted attachment
+    const displayFilename = (incident.attachments.find(att => att.url.endsWith(`/${req.params.filename}`))?.filename) || req.params.filename;
+    // Log audit with filename
+    await AuditLog.create({ action: "deleted attachment", performedBy: req.user.id, incident: req.params.id, details: { filename: displayFilename } });
     res.json(incident);
   } catch (err) {
     console.error("Failed to delete attachment:", err);
