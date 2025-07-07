@@ -384,6 +384,19 @@ const IncidentDetails = () => {
       }
       const res = await incidentApi.patch(`/incidents/${id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
       setIncident(res.data);
+      setEditFields({
+        title: res.data.title,
+        description: res.data.description,
+        status: res.data.status,
+        urgency: res.data.urgency || "",
+        team: res.data.team || "",
+        incidentType: res.data.incidentType || "",
+        impactedService: res.data.impactedService || "",
+        priority: res.data.priority || "",
+        assignedTo: res.data.assignedTo?._id || "",
+        responders: res.data.responders || [],
+        meetingUrl: res.data.meetingUrl || "",
+      });
       setEditMode(false);
       fetchActivity();
       toast.success('Incident updated successfully!');
