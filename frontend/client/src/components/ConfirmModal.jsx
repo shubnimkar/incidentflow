@@ -2,7 +2,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import React from "react";
 
-const ConfirmModal = ({ open, onClose, onConfirm, title, description }) => {
+const ConfirmModal = ({ open, onClose, onConfirm, title, description, children, confirmText = "Confirm" }) => {
   return (
     <Dialog.Root open={open} onOpenChange={onClose}>
       <Dialog.Portal>
@@ -17,7 +17,8 @@ const ConfirmModal = ({ open, onClose, onConfirm, title, description }) => {
             </Dialog.Close>
           </div>
           <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{description}</p>
-          <div className="flex justify-end gap-3">
+          {children}
+          <div className="flex justify-end gap-3 mt-4">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm rounded bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white"
@@ -31,7 +32,7 @@ const ConfirmModal = ({ open, onClose, onConfirm, title, description }) => {
               }}
               className="px-4 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700"
             >
-              Confirm
+              {confirmText}
             </button>
           </div>
         </Dialog.Content>

@@ -73,7 +73,7 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
         style={{ minHeight: 72 }}>
         <div className="flex items-center gap-4 w-full">
           {/* Title */}
-          <div className="flex-1 font-extrabold text-lg truncate text-[var(--if-text-main)]">{incident.title}</div>
+          <div className="flex-1 font-extrabold text-lg truncate text-[var(--if-text-main)]" title={incident.title}>{incident.title}</div>
           {/* Status */}
           <div className="w-20 flex items-center justify-center">
             {incident.status ? (
@@ -152,7 +152,7 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
       {incident.meetingUrl && (
         <div className="mb-2">
           <span className="font-semibold text-xs">Meeting:</span>
-          <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline text-xs">{incident.meetingUrl}</a>
+          <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline text-xs break-all">{incident.meetingUrl}</a>
         </div>
       )}
       {/* Actions */}
@@ -191,7 +191,7 @@ function Dashboard() {
   const [overduePerSeverity, setOverduePerSeverity] = useState({ critical: 4, high: 24, moderate: 48, low: 72 });
   const selectAllRef = useRef();
   const navigate = useNavigate();
-  const [closeConfirmId, setCloseConfirmId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const searchInputRef = useRef();
 
   // Fetch overdue window on mount
@@ -867,7 +867,7 @@ function Dashboard() {
                                       teams={teams}
                                       onAssign={handleAssign}
                                       onEdit={incident => navigate(`/incidents/${incident._id}?edit=1`)}
-                                      onDelete={incident => setCloseConfirmId(incident._id)}
+                                      onDelete={incident => setDeleteConfirmId(incident._id)}
                                       onView={incident => navigate(`/incidents/${incident._id}`)}
                                     />
                                     </div>
@@ -897,7 +897,7 @@ function Dashboard() {
                 teams={teams}
                 onAssign={handleAssign}
                 onEdit={incident => navigate(`/incidents/${incident._id}?edit=1`)}
-                onDelete={incident => setCloseConfirmId(incident._id)}
+                onDelete={incident => setDeleteConfirmId(incident._id)}
                 onView={incident => navigate(`/incidents/${incident._id}`)}
                 compact
               />
@@ -950,18 +950,25 @@ function Dashboard() {
         )}
 
         {/* Confirmation modal */}
-        {closeConfirmId && (
+        {deleteConfirmId && (
           <ConfirmModal
-            title="Mark Incident as Closed?"
-            message="Are you sure you want to mark this incident as closed? This action cannot be undone."
+            open={!!deleteConfirmId}
+            onClose={() => setDeleteConfirmId(null)}
             onConfirm={async () => {
-              await incidentApi.put(`/incidents/${closeConfirmId}`, { status: 'closed' });
-              setCloseConfirmId(null);
-              // Refresh incidents
-              const res = await incidentApi.get('/incidents');
-              setIncidents(res.data);
+              try {
+                await incidentApi.delete(`/incidents/${deleteConfirmId}`);
+                setDeleteConfirmId(null);
+                // Refresh incidents
+                const res = await incidentApi.get('/incidents');
+                setIncidents(res.data);
+                toast.success('Incident deleted successfully!');
+              } catch (err) {
+                toast.error('Failed to delete incident');
+                setDeleteConfirmId(null);
+              }
             }}
-            onCancel={() => setCloseConfirmId(null)}
+            title="Delete Incident?"
+            description="Are you sure you want to permanently delete this incident? This action cannot be undone."
           />
         )}
       </div>

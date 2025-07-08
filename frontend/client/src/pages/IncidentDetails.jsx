@@ -85,7 +85,7 @@ const getStatusBadgeClass = (status) => {
   }
 };
 
-const IncidentHeader = ({ incident, onEdit, onClose, onEscalate, editMode, saving, onSave, onCancel, canEdit }) => (
+const IncidentHeader = ({ incident, onEdit, onClose, onEscalate, editMode, saving, onSave, onCancel, canEdit, showClose, onCloseIncident, isClosed, showReopen, onReopenIncident }) => (
   <div className="bg-white rounded-xl shadow flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-8 border border-gray-100 mb-8 card">
     {/* Left: Main Info */}
     <div className="flex-1 min-w-0 flex flex-col gap-2">
@@ -99,6 +99,12 @@ const IncidentHeader = ({ incident, onEdit, onClose, onEscalate, editMode, savin
         )}
         {incident?.priority && <span><PriorityBadge priority={incident.priority} /></span>}
       </div>
+      {/* Closed info message */}
+      {isClosed && (
+        <div className="mt-2 mb-1 text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+          Closed incidents are view only
+        </div>
+      )}
       {/* Commander */}
       {incident?.assignedTo && (
         <div className="flex items-center gap-2 group mb-1">
@@ -132,7 +138,24 @@ const IncidentHeader = ({ incident, onEdit, onClose, onEscalate, editMode, savin
           <button onClick={onCancel} className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold text-sm shadow hover:bg-gray-300 transition ml-2">Cancel</button>
         </>
       )}
-      {/* Add more action buttons as needed */}
+      {/* Close Incident Button */}
+      {showClose && (
+        <button
+          onClick={onCloseIncident}
+          className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-red-600 text-white font-semibold text-sm shadow hover:bg-red-700 transition ml-2"
+        >
+          <FaRegEdit className="mr-1" /> Close Incident
+        </button>
+      )}
+      {/* Reopen Incident Button */}
+      {showReopen && (
+        <button
+          onClick={onReopenIncident}
+          className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-green-600 text-white font-semibold text-sm shadow hover:bg-green-700 transition ml-2"
+        >
+          <FaRegEdit className="mr-1" /> Reopen Incident
+        </button>
+      )}
     </div>
   </div>
 );
@@ -203,6 +226,10 @@ const IncidentDetails = () => {
   const [onCallUserForTeam, setOnCallUserForTeam] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [customFilename, setCustomFilename] = useState("");
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [showReopenModal, setShowReopenModal] = useState(false);
+  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
+  const [reopenFields, setReopenFields] = useState(null);
 
   const fetchActivity = async () => {
     setActivityLoading(true);
@@ -338,10 +365,12 @@ const IncidentDetails = () => {
     }
   }, [incident]);
 
-  const canEdit = user?.role === "admin" || user?.email === incident?.createdBy?.email || user?.email === incident?.createdByEmail;
+  // Only allow editing if not closed
+  const isClosed = incident?.status === 'closed';
+  const canEdit = (user?.role === "admin" || user?.email === incident?.createdBy?.email || user?.email === incident?.createdByEmail) && !isClosed;
   const canDeleteAttachment = canEdit;
 
-  const handleEdit = () => setEditMode(true);
+  const handleEdit = () => { if (!isClosed) setEditMode(true); };
   const handleCancel = () => {
     setEditFields({
       title: incident.title,
@@ -651,6 +680,60 @@ const IncidentDetails = () => {
     return a.action;
   }
 
+  const handleCloseIncident = () => setShowCloseModal(true);
+  const handleConfirmClose = async () => {
+    try {
+      const res = await incidentApi.put(`/incidents/${id}`, { status: 'closed' }, { headers: { Authorization: `Bearer ${token}` } });
+      setIncident(res.data);
+      setShowCloseModal(false);
+      toast.success('Incident closed successfully!');
+    } catch (err) {
+      toast.error('Failed to close incident');
+      setShowCloseModal(false);
+    }
+  };
+
+  const handleReopenIncident = () => {
+    setReopenFields({ ...editFields, status: 'open' });
+    setShowReopenModal(true);
+  };
+
+  const handleReopenFieldChange = (field, value) => setReopenFields(prev => ({ ...prev, [field]: value }));
+
+  const handleContinueReopen = () => {
+    setShowReopenModal(false);
+    setShowReopenConfirm(true);
+  };
+
+  const handleConfirmReopen = async () => {
+    try {
+      const payload = { ...reopenFields, status: 'open' };
+      await incidentApi.patch(`/incidents/${id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      // Re-fetch the incident to ensure all fields are up to date
+      const res = await incidentApi.get(`/incidents/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setIncident(res.data);
+      setEditFields({
+        title: res.data.title,
+        description: res.data.description,
+        status: res.data.status,
+        urgency: res.data.urgency || "",
+        team: res.data.team || "",
+        incidentType: res.data.incidentType || "",
+        impactedService: res.data.impactedService || "",
+        priority: res.data.priority || "",
+        assignedTo: res.data.assignedTo?._id || "",
+        responders: res.data.responders || [],
+        meetingUrl: res.data.meetingUrl || "",
+      });
+      setShowReopenConfirm(false);
+      fetchActivity();
+      toast.success('Incident reopened and updated!');
+    } catch (err) {
+      toast.error('Failed to reopen incident');
+      setShowReopenConfirm(false);
+    }
+  };
+
   if (loading) return <div className="h-screen flex items-center justify-center text-lg">Loading...</div>;
   if (!incident) return <div className="h-screen flex items-center justify-center text-lg">Incident not found</div>;
 
@@ -667,7 +750,12 @@ const IncidentDetails = () => {
           saving={saving}
           onSave={handleSave}
           onCancel={handleCancel}
-          canEdit={user && (user.role === 'admin' || user._id === incident?.createdBy?._id)}
+          canEdit={canEdit}
+          showClose={canEdit && !editMode && incident?.status === 'resolved'}
+          onCloseIncident={handleCloseIncident}
+          isClosed={isClosed}
+          showReopen={isClosed && (user?.role === 'admin' || user?.email === incident?.createdBy?.email || user?.email === incident?.createdByEmail)}
+          onReopenIncident={handleReopenIncident}
         />
         <div className="flex flex-col md:flex-row gap-6">
           {/* Left column: Details, Participants, Attachments */}
@@ -679,7 +767,7 @@ const IncidentDetails = () => {
                   className="w-full text-2xl font-bold mb-3 border px-2 py-1 rounded"
                 value={editFields.title}
                 onChange={e => handleFieldChange('title', e.target.value)}
-                disabled={saving}
+                disabled={saving || isClosed}
               />
             ) : (
                 <h2 className="text-2xl font-bold mb-3">{incident?.title}</h2>
@@ -690,7 +778,7 @@ const IncidentDetails = () => {
                   className="w-full border rounded-lg p-2 min-h-[80px] mb-4"
                   value={editFields.description}
                   onChange={e => handleFieldChange('description', e.target.value)}
-                  disabled={saving}
+                  disabled={saving || isClosed}
                 />
               ) : (
                 <p className="text-meta mb-4 whitespace-pre-line">{incident?.description}</p>
@@ -705,7 +793,7 @@ const IncidentDetails = () => {
                       className="w-full px-3 py-1 rounded border mt-1"
                       value={editFields.incidentType}
                       onChange={e => handleFieldChange('incidentType', e.target.value)}
-                  disabled={saving}
+                  disabled={saving || isClosed}
                 >
                       {incidentTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
@@ -721,7 +809,7 @@ const IncidentDetails = () => {
                       className="w-full px-3 py-1 rounded border mt-1"
                       value={editFields.impactedService}
                       onChange={e => handleFieldChange('impactedService', e.target.value)}
-                  disabled={saving}
+                  disabled={saving || isClosed}
                 >
                       {serviceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
@@ -737,7 +825,7 @@ const IncidentDetails = () => {
                       className="w-full px-3 py-1 rounded border mt-1"
                       value={editFields.urgency}
                       onChange={e => handleFieldChange('urgency', e.target.value)}
-                  disabled={saving}
+                  disabled={saving || isClosed}
                 >
                       {urgencyOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
@@ -753,7 +841,7 @@ const IncidentDetails = () => {
                       className="w-full px-3 py-1 rounded border mt-1"
                       value={editFields.priority}
                       onChange={e => handleFieldChange('priority', e.target.value)}
-                disabled={saving}
+                disabled={saving || isClosed}
               >
                       {priorityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
@@ -771,7 +859,7 @@ const IncidentDetails = () => {
                       onChange={opt => handleFieldChange('assignedTo', opt ? opt.value : '')}
                       options={users.map(u => ({ value: u._id, label: u.name || u.email }))}
                       isClearable
-                      isDisabled={saving}
+                      isDisabled={saving || isClosed}
                     />
               ) : (
                     <span className="ml-1">{users.find(u => u._id === (incident?.assignedTo?._id || incident?.assignedTo))?.name || users.find(u => u._id === (incident?.assignedTo?._id || incident?.assignedTo))?.email || 'Unassigned'}</span>
@@ -787,7 +875,7 @@ const IncidentDetails = () => {
                       onChange={opt => handleFieldChange('team', opt ? opt.value : '')}
                       options={teams.map(t => ({ value: t._id, label: t.name }))}
                       isClearable
-                      isDisabled={saving}
+                      isDisabled={saving || isClosed}
                     />
             ) : (
                     <span className="ml-1">{teams.find(t => t._id === (incident?.team?._id || incident?.team))?.name || 'N/A'}</span>
@@ -801,12 +889,12 @@ const IncidentDetails = () => {
                       className="w-full border rounded-lg p-2 mt-1"
                 value={editFields.meetingUrl}
                 onChange={e => handleFieldChange('meetingUrl', e.target.value)}
-                disabled={saving}
+                disabled={saving || isClosed}
                 placeholder="https://example.com/meeting"
               />
             ) : (
                     incident?.meetingUrl ? (
-                <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline">{incident.meetingUrl}</a>
+                <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline break-all">{incident.meetingUrl}</a>
               ) : (
                 <span className="ml-1 text-gray-500">N/A</span>
               )
@@ -833,7 +921,7 @@ const IncidentDetails = () => {
                     value: u._id,
                     label: u.name || u.email
                   }))}
-                  isDisabled={saving}
+                  isDisabled={saving || isClosed}
                   placeholder="Add additional responders..."
               />
             ) : (
@@ -859,7 +947,7 @@ const IncidentDetails = () => {
                   ref={fileInputRef}
                   onChange={handleFileSelect}
                   className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  disabled={uploading}
+                  disabled={uploading || isClosed}
                 />
                 {selectedFile && (
                   <div className="flex gap-2 items-center mt-2">
@@ -868,18 +956,20 @@ const IncidentDetails = () => {
                       value={customFilename}
                       onChange={e => setCustomFilename(e.target.value)}
                       className="border rounded px-2 py-1"
+                      disabled={isClosed}
                     />
                     <span>.{selectedFile.name.split('.').pop()}</span>
                     <button
                       onClick={handleAttachmentUpload}
                       className="btn-primary px-3 py-1 rounded font-semibold transition"
-                      disabled={uploading || !customFilename}
+                      disabled={uploading || !customFilename || isClosed}
                     >
                       Upload
                     </button>
                     <button
                       onClick={() => { setSelectedFile(null); setCustomFilename(""); if (fileInputRef.current) fileInputRef.current.value = ''; }}
                       className="ml-2 px-2 py-1 rounded bg-gray-200 text-xs text-gray-700 hover:bg-gray-300"
+                      disabled={isClosed}
                     >
                       Cancel
                     </button>
@@ -924,7 +1014,7 @@ const IncidentDetails = () => {
                         >
                           <FaDownload />
                         </a>
-                        {user?.role === 'admin' && (
+                        {!isClosed && user?.role === 'admin' && (
                           <button
                             onClick={() => handleDeleteAttachment(att.url.split("/").pop())}
                             disabled={deletingAttachment === att.url.split("/").pop()}
@@ -993,40 +1083,27 @@ const IncidentDetails = () => {
               <div>
                 <h3 className="text-md font-semibold mb-2">Comments</h3>
                 {/* Add Comment Box at the top */}
-                <form onSubmit={handleCommentSubmit} className="mb-4 flex gap-2 relative">
-                  <div className="relative w-full">
-                    <input
-                      type="text"
+                {!isClosed && (
+                  <form onSubmit={handleCommentSubmit} className="flex gap-2 items-end mt-4">
+                    <textarea
+                      className="flex-1 border rounded-lg p-2 min-h-[40px] text-sm"
                       value={commentText}
                       onChange={handleCommentInput}
-                      placeholder="Add a comment"
-                      className="flex-1 border p-2 rounded-lg w-full"
-                      ref={fileInputRef}
+                      placeholder="Add a comment..."
+                      disabled={isClosed}
                     />
-                    {mentionDropdown.open && mentionDropdown.options.length > 0 && (
-                      <ul
-                        className="absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded shadow z-50 max-h-48 overflow-y-auto animate-emoji-fade-scale"
-                        style={{ minWidth: 180 }}
-                      >
-                        {mentionDropdown.options.map((u, idx) => (
-                          <li
-                            key={u._id}
-                            className={`px-3 py-2 cursor-pointer text-sm hover:bg-blue-100 transition-colors ${mentionDropdown.index === idx ? "bg-blue-50" : ""}`}
-                            onClick={() => handleMentionSelect(u)}
-                          >
-                            @{u.name || u.email}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn-primary px-4 py-2 rounded-lg font-semibold transition"
-                  >
-                    Submit
-                  </button>
-                </form>
+                    <button
+                      type="submit"
+                      className="btn-primary px-4 py-2 rounded font-semibold text-sm"
+                      disabled={!commentText.trim() || isClosed}
+                    >
+                      Comment
+                    </button>
+                  </form>
+                )}
+                {isClosed && (
+                  <div className="mt-4 text-sm text-gray-500 italic">Comments are disabled for closed incidents.</div>
+                )}
                 {/* Comments List below the add comment box */}
                 {incident?.comments?.length === 0 ? (
                   <p className="text-meta">No comments yet.</p>
@@ -1201,6 +1278,108 @@ const IncidentDetails = () => {
         }}
         title={confirmModal.title}
         description={confirmModal.description}
+      />
+      {/* Close Incident Modal */}
+      <ConfirmModal
+        open={showCloseModal}
+        onClose={() => setShowCloseModal(false)}
+        onConfirm={handleConfirmClose}
+        title="Close Incident?"
+        description="Are you sure you want to close this incident? This action cannot be undone."
+      />
+      {/* Reopen Incident Modal (Step 1: Edit Form) */}
+      <ConfirmModal
+        open={showReopenModal}
+        onClose={() => setShowReopenModal(false)}
+        onConfirm={handleContinueReopen}
+        title="Reopen Incident"
+        confirmText="Continue"
+        description="Edit any fields below before reopening. All changes will be logged."
+      >
+        {reopenFields && (
+          <div className="space-y-3 mt-4">
+            <input
+              className="w-full border rounded px-2 py-1"
+              value={reopenFields.title}
+              onChange={e => handleReopenFieldChange('title', e.target.value)}
+              placeholder="Title"
+            />
+            <textarea
+              className="w-full border rounded px-2 py-1"
+              value={reopenFields.description}
+              onChange={e => handleReopenFieldChange('description', e.target.value)}
+              placeholder="Description"
+            />
+            <select
+              className="w-full border rounded px-2 py-1"
+              value={reopenFields.incidentType}
+              onChange={e => handleReopenFieldChange('incidentType', e.target.value)}
+            >
+              {incidentTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+            <select
+              className="w-full border rounded px-2 py-1"
+              value={reopenFields.impactedService}
+              onChange={e => handleReopenFieldChange('impactedService', e.target.value)}
+            >
+              {serviceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+            <select
+              className="w-full border rounded px-2 py-1"
+              value={reopenFields.urgency}
+              onChange={e => handleReopenFieldChange('urgency', e.target.value)}
+            >
+              {urgencyOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+            <select
+              className="w-full border rounded px-2 py-1"
+              value={reopenFields.priority}
+              onChange={e => handleReopenFieldChange('priority', e.target.value)}
+            >
+              {priorityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+            <Select
+              options={users.map(u => ({ value: u._id, label: u.name || u.email }))}
+              value={users.find(u => u._id === reopenFields.assignedTo) ? { value: reopenFields.assignedTo, label: users.find(u => u._id === reopenFields.assignedTo)?.name || users.find(u => u._id === reopenFields.assignedTo)?.email } : null}
+              onChange={option => handleReopenFieldChange('assignedTo', option ? option.value : '')}
+              isClearable
+              placeholder="Assign to..."
+            />
+            <Select
+              options={teams.map(t => ({ value: t._id, label: t.name }))}
+              value={teams.find(t => t._id === reopenFields.team) ? { value: reopenFields.team, label: teams.find(t => t._id === reopenFields.team)?.name } : null}
+              onChange={option => handleReopenFieldChange('team', option ? option.value : '')}
+              isClearable
+              placeholder="Team..."
+            />
+            <input
+              className="w-full border rounded px-2 py-1"
+              value={reopenFields.meetingUrl}
+              onChange={e => handleReopenFieldChange('meetingUrl', e.target.value)}
+              placeholder="Meeting URL"
+            />
+            <Select
+              options={users.map(u => ({ value: u._id, label: u.name || u.email }))}
+              value={reopenFields.responders?.map(rid => {
+                const u = users.find(u => u._id === rid);
+                return u ? { value: u._id, label: u.name || u.email } : null;
+              }).filter(Boolean) || []}
+              onChange={options => handleReopenFieldChange('responders', options ? options.map(o => o.value) : [])}
+              isMulti
+              isClearable
+              placeholder="Additional Responders..."
+            />
+          </div>
+        )}
+      </ConfirmModal>
+      {/* Reopen Incident Confirmation Modal (Step 2) */}
+      <ConfirmModal
+        open={showReopenConfirm}
+        onClose={() => setShowReopenConfirm(false)}
+        onConfirm={handleConfirmReopen}
+        title="Reopen Incident"
+        confirmText="Confirm"
+        description="Are you sure you want to reopen this incident? All changes will be logged."
       />
       </div>
     </div>
