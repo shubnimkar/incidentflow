@@ -674,14 +674,14 @@ const IncidentDetails = () => {
           <div className="flex-1 min-w-0">
             <Card title="Details" className="card">
               {/* Title */}
-              {editMode ? (
-                <input
+            {editMode ? (
+              <input
                   className="w-full text-2xl font-bold mb-3 border px-2 py-1 rounded"
-                  value={editFields.title}
-                  onChange={e => handleFieldChange('title', e.target.value)}
-                  disabled={saving}
-                />
-              ) : (
+                value={editFields.title}
+                onChange={e => handleFieldChange('title', e.target.value)}
+                disabled={saving}
+              />
+            ) : (
                 <h2 className="text-2xl font-bold mb-3">{incident?.title}</h2>
               )}
               {/* Description */}
