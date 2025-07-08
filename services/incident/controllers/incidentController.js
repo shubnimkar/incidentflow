@@ -93,10 +93,24 @@ const updateIncidentStatus = async (req, res) => {
     const incident = await Incident.findById(id);
     if (!incident) return res.status(404).json({ message: "Incident not found" });
 
-    if (status) incident.status = status;
+    let statusChanged = false;
+    let oldStatus = incident.status;
+    if (status && status !== incident.status) {
+      statusChanged = true;
+      incident.status = status;
+    }
     if (assignedTo) incident.assignedTo = assignedTo;
 
     await incident.save();
+    // Log status change if it happened
+    if (statusChanged) {
+      await logAudit(
+        "updated field",
+        req.user.id,
+        id,
+        { field: "status", oldValue: oldStatus, newValue: status }
+      );
+    }
     // Emit real-time update
     req.app.get('io').emit('incidentUpdated', {
       ...incident.toObject(),
