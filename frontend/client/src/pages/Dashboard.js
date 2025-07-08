@@ -37,8 +37,8 @@ Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointEle
 
 // Card component (reuse from IncidentDetails)
 const Card = ({ title, children, className = "" }) => (
-  <div className={`bg-white rounded-xl shadow border border-[#e5e7eb] p-6 mb-6 ${className}`}>
-    {title && <h2 className="text-lg font-semibold mb-4 text-slate-800">{title}</h2>}
+  <div className={`bg-[var(--if-card-bg)] border border-[var(--if-border)] text-[var(--if-text-main)] rounded-xl shadow p-6 mb-6 font-sans ${className}`}>
+    {title && <h2 className="text-lg font-semibold mb-4 text-[var(--if-text-main)] font-sans">{title}</h2>}
     {children}
   </div>
 );
@@ -69,11 +69,11 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
     if (incident.status === 'closed') borderColor = 'border-l-4 border-gray-400';
 
     return (
-      <Card className={`card p-5 mb-0 shadow-sm hover:shadow-lg transition-all duration-150 bg-white ${borderColor}`}
+      <Card className={`card p-5 mb-0 shadow-sm hover:shadow-lg transition-all duration-150 bg-white ${borderColor} font-sans`}
         style={{ minHeight: 72 }}>
         <div className="flex items-center gap-4 w-full">
           {/* Title */}
-          <div className="flex-1 font-extrabold text-lg truncate text-[var(--if-text-main)]" title={incident.title}>{incident.title}</div>
+          <div className="flex-1 font-extrabold text-lg text-[var(--if-text-main)] break-words" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }} title={incident.title}>{incident.title}</div>
           {/* Status */}
           <div className="w-20 flex items-center justify-center">
             {incident.status ? (
@@ -85,27 +85,27 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
             {incident.priority ? <PriorityBadge priority={incident.priority} /> : <span className="text-meta">—</span>}
           </div>
           {/* Commander */}
-          <div className="w-48 flex items-center gap-1 text-xs text-meta">
+          <div className="w-48 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaUserCircle className="text-gray-400" />
             <span className="truncate">{commander?.name || commander?.email || '—'}</span>
           </div>
           {/* Type */}
-          <div className="w-36 flex items-center gap-1 text-xs text-meta">
+          <div className="w-36 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaTag className="text-gray-400" />
             <span className="truncate">{incident.incidentType || '—'}</span>
           </div>
           {/* Service */}
-          <div className="w-36 flex items-center gap-1 text-xs text-meta">
+          <div className="w-36 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaLayerGroup className="text-gray-400" />
             <span className="truncate">{incident.impactedService || '—'}</span>
           </div>
           {/* Urgency */}
-          <div className="w-24 flex items-center gap-1 text-xs text-meta">
+          <div className="w-24 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaExclamationTriangle className="text-gray-400" />
             <span className="truncate">{incident.urgency || '—'}</span>
           </div>
           {/* Team */}
-          <div className="w-24 flex items-center gap-1 text-xs text-meta">
+          <div className="w-24 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaUsers className="text-gray-400" />
             <span className="truncate">{team?.name || '—'}</span>
           </div>
@@ -119,20 +119,23 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
     );
   }
   return (
-    <Card className="card h-full flex flex-col justify-between">
+    <Card className="card h-full flex flex-col justify-between font-sans">
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
-        <h3 className="text-xl font-bold flex-1 truncate" title={incident.title}>{incident.title}</h3>
+        <h3 className="text-xl font-extrabold flex-1 text-[var(--if-text-main)] break-words" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }} title={incident.title}>{incident.title}</h3>
         {incident.status && (
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(incident.status)}`}>{incident.status.replace('_', ' ')}</span>
         )}
         {incident.priority && <span><PriorityBadge priority={incident.priority} /></span>}
       </div>
       {/* Meta */}
-      <div className="flex flex-wrap gap-3 text-xs text-meta mb-2">
-        <span>ID: {incident._id}</span>
-        <span>Created: {incident.createdAt ? new Date(incident.createdAt).toLocaleString() : 'N/A'}</span>
-        <span>Updated: {incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : 'N/A'}</span>
+      <div className="flex flex-wrap gap-3 text-xs text-[var(--if-text-meta)] mb-2">
+        <span className="font-semibold text-[var(--if-text-main)]">ID:</span>
+        <span className="text-[var(--if-text-main)]">{incident._id}</span>
+        <span className="font-semibold text-[var(--if-text-main)]">Created:</span>
+        <span className="text-[var(--if-text-main)]">{incident.createdAt ? new Date(incident.createdAt).toLocaleString() : 'N/A'}</span>
+        <span className="font-semibold text-[var(--if-text-main)]">Updated:</span>
+        <span className="text-[var(--if-text-main)]">{incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : 'N/A'}</span>
       </div>
       {/* Commander */}
       <div className="flex items-center gap-2 mb-2">
@@ -143,10 +146,10 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
       </div>
       {/* Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 mb-2">
-        <div><span className="font-semibold">Type:</span> <span className="ml-1">{incident.incidentType || '—'}</span></div>
-        <div><span className="font-semibold">Service:</span> <span className="ml-1">{incident.impactedService || '—'}</span></div>
-        <div><span className="font-semibold">Urgency:</span> <span className="ml-1">{incident.urgency || '—'}</span></div>
-        <div><span className="font-semibold">Team:</span> <span className="ml-1">{team?.name || '—'}</span></div>
+        <div><span className="font-semibold text-[var(--if-text-main)]">Type:</span> <span className="ml-1 text-[var(--if-text-main)]">{incident.incidentType || '—'}</span></div>
+        <div><span className="font-semibold text-[var(--if-text-main)]">Service:</span> <span className="ml-1 text-[var(--if-text-main)]">{incident.impactedService || '—'}</span></div>
+        <div><span className="font-semibold text-[var(--if-text-main)]">Urgency:</span> <span className="ml-1 text-[var(--if-text-main)]">{incident.urgency || '—'}</span></div>
+        <div><span className="font-semibold text-[var(--if-text-main)]">Team:</span> <span className="ml-1 text-[var(--if-text-main)]">{team?.name || '—'}</span></div>
       </div>
       {/* Meeting URL */}
       {incident.meetingUrl && (
@@ -391,6 +394,7 @@ function Dashboard() {
   const openCount = incidents.filter(i => i.status === 'open').length;
   const inProgressCount = incidents.filter(i => i.status === 'in_progress').length;
   const resolvedCount = incidents.filter(i => i.status === 'resolved').length;
+  const closedCount = incidents.filter(i => i.status === 'closed').length;
   const unassignedCount = incidents.filter(i => !i.assignedTo).length;
   const overdueCount = incidents.filter(i => {
     const createdAt = new Date(i.createdAt);
@@ -539,7 +543,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen w-full bg-[var(--if-page-bg)] text-[var(--if-text-main)] px-2 sm:px-6 md:px-12 py-4">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -618,6 +622,20 @@ function Dashboard() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Resolved</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{resolvedCount}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <FaCheckCircle className="text-gray-500 dark:text-gray-300" />
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Closed Incidents</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{closedCount}</p>
               </div>
             </div>
           </div>
@@ -820,7 +838,7 @@ function Dashboard() {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 ${
+                        className={`bg-[var(--if-card-bg)] border border-[var(--if-border)] rounded-xl shadow p-6 ${
                           snapshot.isDraggingOver ? "ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/20" : ""
                         }`}
                       >
@@ -889,7 +907,7 @@ function Dashboard() {
         {/* List View */}
         {viewMode === 'list' && (
           <div className="flex flex-col gap-4">
-            {filteredIncidents.map(incident => (
+            {filteredIncidents.filter(i => i.status !== 'closed').map(incident => (
               <IncidentCard
                 key={incident._id}
                 incident={incident}
