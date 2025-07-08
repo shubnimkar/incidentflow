@@ -42,6 +42,26 @@
   --if-text-main: #212121;    /* Main text */
   --if-text-meta: #757575;    /* Meta/secondary text */
 }
+:root.dark {
+  --if-primary: #90caf9;         /* Lighter blue for dark bg */
+  --if-primary-hover: #64b5f6;
+  --if-success: #81c784;         /* Lighter green */
+  --if-warning: #ffb74d;         /* Lighter orange */
+  --if-warning-bg: #2d1f00;      /* Deep brown for warning bg */
+  --if-success-bg: #1b2e1b;      /* Deep green for success bg */
+  --if-card-bg: #23272f;         /* Card background */
+  --if-page-bg: #181a20;         /* Page background */
+  --if-border: #2d323c;          /* Border */
+  --if-text-main: #f3f4f6;       /* Main text */
+  --if-text-meta: #a0aec0;       /* Meta/secondary text */
+}
+
+html, body {
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+.card {
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
 
 body {
   background: var(--if-page-bg);
