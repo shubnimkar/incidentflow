@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "mongoose": "^8.16.2",
     "react-hot-toast": "^2.5.2",
     "socket.io": "^4.7.5"
   }
