@@ -437,42 +437,50 @@ const deleteIncident = async (req, res) => {
   }
 };
 
-// Get global overdue window (in hours)
+// Get overdue window per priority (in hours)
 const getOverdueWindow = async (req, res) => {
   try {
     let settings = await Settings.findOne();
     if (!settings) {
       settings = await Settings.create({});
     }
-    res.json({
-      overdueWindowHours: settings.overdueWindowHours,
-    });
+    // Ensure all priorities are present
+    const defaults = { P1: 24, P2: 48, P3: 72, P4: 120, P5: 168 };
+    const overdueWindow = { ...defaults, ...settings.overdueWindowHours };
+    res.json({ overdueWindowHours: overdueWindow });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// Update global overdue window (admin only)
+// Update overdue window per priority (admin only)
 const updateOverdueWindow = async (req, res) => {
   try {
     if (!req.user || req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Admin access required' });
     }
     const { overdueWindowHours } = req.body;
+    if (!overdueWindowHours || typeof overdueWindowHours !== 'object') {
+      return res.status(400).json({ message: 'Invalid payload' });
+    }
+    const priorities = ['P1', 'P2', 'P3', 'P4', 'P5'];
+    for (const p of priorities) {
+      if (
+        overdueWindowHours[p] === undefined ||
+        typeof overdueWindowHours[p] !== 'number' ||
+        overdueWindowHours[p] < 1 ||
+        overdueWindowHours[p] > 168
+      ) {
+        return res.status(400).json({ message: `Invalid value for ${p} (1-168 hours allowed)` });
+      }
+    }
     let settings = await Settings.findOne();
     if (!settings) {
       settings = await Settings.create({});
     }
-    if (overdueWindowHours) {
-      if (overdueWindowHours < 1 || overdueWindowHours > 168) {
-        return res.status(400).json({ message: 'Invalid overdue window (1-168 hours allowed)' });
-      }
-      settings.overdueWindowHours = overdueWindowHours;
-    }
+    settings.overdueWindowHours = overdueWindowHours;
     await settings.save();
-    res.json({
-      overdueWindowHours: settings.overdueWindowHours,
-    });
+    res.json({ overdueWindowHours: settings.overdueWindowHours });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -511,4 +519,37 @@ const getArchivedIncidents = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident, getOverdueWindow, updateOverdueWindow, archiveIncident, getArchivedIncidents };
+// Fetch audit logs with filters and pagination
+const getAuditLogs = async (req, res) => {
+  try {
+    const { user, action, incident, startDate, endDate, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (user) filter.performedBy = user;
+    if (action) filter.action = action;
+    if (incident) filter.incident = incident;
+    if (startDate || endDate) {
+      filter.timestamp = {};
+      if (startDate) filter.timestamp.$gte = new Date(startDate);
+      if (endDate) filter.timestamp.$lte = new Date(endDate);
+    }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const logs = await AuditLog.find(filter)
+      .populate('performedBy', 'email name')
+      .populate('incident', 'title')
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    const total = await AuditLog.countDocuments(filter);
+    res.json({
+      logs,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident, getOverdueWindow, updateOverdueWindow, archiveIncident, getArchivedIncidents, getAuditLogs };

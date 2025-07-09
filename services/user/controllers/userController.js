@@ -1,6 +1,7 @@
 // /services/user/controllers/userController.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const UserAuditLog = require("../models/UserAuditLog");
 
 const JWT_SECRET = process.env.JWT_SECRET; // use env vars in production
 
@@ -57,6 +58,14 @@ exports.deleteUser = async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ message: "User not found." });
     }
+
+    // Log audit
+    await UserAuditLog.create({
+      action: "delete",
+      performedBy: req.user._id,
+      targetUser: deleted._id,
+      details: { email: deleted.email, role: deleted.role },
+    });
 
     res.json({ message: "User deleted successfully." });
   } catch (err) {
