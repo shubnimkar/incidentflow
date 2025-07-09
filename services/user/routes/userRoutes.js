@@ -16,7 +16,9 @@ const twilio = require('twilio');
 require('dotenv').config();
 
 const User = require("../models/User");
+const UserAuditLog = require("../models/UserAuditLog");
 const { authenticateToken, authorizeAdmin } = require("../middleware/auth");
+const adminController = require("../controllers/adminController");
 
 const router = express.Router();
 
@@ -310,30 +312,7 @@ router.post("/teams/:id/add-member", teamController.addMember);
 router.post("/teams/:id/remove-member", teamController.removeMember);
 
 // Change user role (admin only)
-router.patch("/:id/role", async (req, res) => {
-  const { role } = req.body;
-
-  if (!["admin", "responder"].includes(role)) {
-    return res.status(400).json({ message: "Invalid role provided" });
-  }
-
-  try {
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role },
-      { new: true }
-    ).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json({ message: "Role updated successfully", user });
-  } catch (err) {
-    console.error("Failed to change role:", err);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
+router.patch("/:id/role", adminController.updateUserRole);
 
 // Delete user (admin only)
 router.delete("/:id", deleteUser);
@@ -420,6 +399,30 @@ router.post('/resend-phone-verification', authenticateToken, async (req, res) =>
   } catch (err) {
     console.error('Failed to resend verification SMS:', err);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Admin-protected: Get user audit logs
+router.get("/audit-logs", authenticateToken, authorizeAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const logs = await UserAuditLog.find()
+      .populate("performedBy", "email name")
+      .populate("targetUser", "email name")
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    const total = await UserAuditLog.countDocuments();
+    res.json({
+      logs,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch user audit logs" });
   }
 });
 

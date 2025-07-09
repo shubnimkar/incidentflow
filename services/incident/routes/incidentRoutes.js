@@ -21,6 +21,7 @@ const {
   updateOverdueWindow,
   archiveIncident,
   getArchivedIncidents,
+  getAuditLogs,
 } = require("../controllers/incidentController");
 
 const { verifyToken, canEditIncident } = require("../middleware/auth");
@@ -42,7 +43,10 @@ const upload = multer({ storage });
 // Advanced comment routes (must be above router.get('/:id', ...))
 router.patch('/:id/comments/:commentId', verifyToken, editComment);
 router.delete('/:id/comments/:commentId', verifyToken, deleteComment);
-router.patch('/:id/comments/:commentId/reactions', verifyToken, reactToComment);
+router.patch('/:id/comments/:commentId/reactions', verifyToken, verifyToken, reactToComment);
+
+// Admin: Audit logs with filters and pagination (must be before any '/:id' routes)
+router.get('/audit-logs', verifyToken, requireAdmin, getAuditLogs);
 
 // Public routes — any logged-in user
 router.post('/', verifyToken, createIncident);
