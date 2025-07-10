@@ -10,7 +10,6 @@ const TABS = [
   { key: "teams", label: "Teams" },
   { key: "overdue", label: "Overdue Windows" },
   { key: "audit", label: "Audit Logs" },
-  { key: "userAudit", label: "User Audit Logs" },
 ];
 
 export default function AdminPanel() {
@@ -35,7 +34,6 @@ export default function AdminPanel() {
       {activeTab === "teams" && <TeamsSection />}
       {activeTab === "overdue" && <OverdueWindowSection />}
       {activeTab === "audit" && <AuditLogsSection />}
-      {activeTab === "userAudit" && <UserAuditLogsSection />}
     </div>
   );
 }

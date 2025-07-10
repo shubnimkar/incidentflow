@@ -20,6 +20,7 @@ const auditLogSchema = new mongoose.Schema({
     default: Date.now,
   },
   details: { type: mongoose.Schema.Types.Mixed },
+  requestId: { type: String },
 });
 
 module.exports = mongoose.model("AuditLog", auditLogSchema);
