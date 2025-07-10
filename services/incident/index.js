@@ -6,6 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const http = require("http");
 const socketIo = require("socket.io");
+const { v4: uuidv4 } = require('uuid');
 require("dotenv").config();
 
 
@@ -36,6 +37,11 @@ if (!fs.existsSync(uploadsDir)) {
 }
 // Serve attachments as static files
 app.use("/uploads/incident-attachments", express.static(uploadsDir));
+
+app.use((req, res, next) => {
+  req.requestId = uuidv4();
+  next();
+});
 
 app.use("/api/incidents", require("./routes/incidentRoutes"));
 

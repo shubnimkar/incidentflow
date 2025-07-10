@@ -105,10 +105,12 @@ const updateIncidentStatus = async (req, res) => {
     // Log status change if it happened
     if (statusChanged) {
       await logAudit(
-        "updated field",
+        status === "closed" ? "closed incident" : "updated field",
         req.user.id,
         id,
-        { field: "status", oldValue: oldStatus, newValue: status }
+        { field: "status", oldValue: oldStatus, newValue: status },
+        req.requestId,
+        req
       );
     }
     // Emit real-time update
@@ -137,7 +139,7 @@ const assignIncident = async (req, res) => {
     ).populate("assignedTo", "email name");
 
     // Log audit
-    await logAudit("assigned incident", req.user.id, id, { field: 'assignedTo', oldValue: incident.assignedTo, newValue: assignedTo });
+    await logAudit("assigned incident", req.user.id, id, { field: 'assignedTo', oldValue: incident.assignedTo, newValue: assignedTo }, req.requestId, req);
 
     // Temporarily remove email sending
     // if (user.email) {
@@ -196,12 +198,47 @@ updateIncident = async (req, res) => {
       const newValueCanonical = canonicalize(updates[field]);
       const changed = JSON.stringify(oldValueCanonical) !== JSON.stringify(newValueCanonical);
       if (changed && updates[field] !== undefined) {
-        await logAudit(
-          "updated field",
-          req.user.id,
-          id,
-          { field, oldValue: incident[field], newValue: updates[field] }
-        );
+        // Special case: status changed to 'closed'
+        if (field === 'status' && updates[field] === 'closed') {
+          await logAudit(
+            'closed incident',
+            req.user.id,
+            id,
+            { field, oldValue: incident[field], newValue: updates[field] },
+            req.requestId,
+            req
+          );
+        // Special case: assignedTo changed
+        } else if (field === 'assignedTo') {
+          // Fetch assigned user email if possible
+          let assignedToUser = null;
+          if (updates[field]) {
+            assignedToUser = await User.findById(updates[field]);
+          }
+          await logAudit(
+            'assigned incident',
+            req.user.id,
+            id,
+            {
+              field,
+              oldValue: incident[field],
+              newValue: updates[field],
+              assignedToEmail: assignedToUser ? assignedToUser.email : undefined,
+              incidentTitle: incident.title
+            },
+            req.requestId,
+            req
+          );
+        } else {
+          await logAudit(
+            'updated field',
+            req.user.id,
+            id,
+            { field, oldValue: incident[field], newValue: updates[field] },
+            req.requestId,
+            req
+          );
+        }
       }
     }
     // Now update the incident
@@ -257,7 +294,7 @@ const addComment = async (req, res) => {
     await incident.save();
 
     // Log audit
-    await logAudit("added comment", userId, incidentId, { comment: message });
+    await logAudit("added comment", userId, incidentId, { comment: message }, req.requestId, req);
 
     const updatedIncident = await Incident.findById(incidentId)
       .populate("createdBy", "email")
@@ -305,7 +342,7 @@ const uploadAttachment = async (req, res) => {
     });
     await incident.save();
     // Log audit
-    await logAudit("uploaded attachment", req.user.id, req.params.id, { filename: customFilename || req.file.originalname });
+    await logAudit("uploaded attachment", req.user.id, req.params.id, { filename: customFilename || req.file.originalname }, req.requestId, req);
     const updatedIncident = await Incident.findById(req.params.id)
       .populate("createdBy", "email")
       .populate("assignedTo", "email")
@@ -319,8 +356,16 @@ const uploadAttachment = async (req, res) => {
 };
 
 // Helper to create audit log
-async function logAudit(action, userId, incidentId, details = null) {
-  await AuditLog.create({ action, performedBy: userId, incident: incidentId, details });
+async function logAudit(action, userId, incidentId, details = null, requestId = null, req = null) {
+  const log = await AuditLog.create({ action, performedBy: userId, incident: incidentId, details, requestId });
+  // Emit socket event if possible
+  if (req && req.app && req.app.get && req.app.get('io')) {
+    // Populate performedBy and incident for richer frontend data
+    const populatedLog = await AuditLog.findById(log._id)
+      .populate('performedBy', 'email name')
+      .populate('incident', 'title');
+    req.app.get('io').emit('auditLogCreated', populatedLog);
+  }
 }
 
 // Edit a comment
@@ -429,7 +474,12 @@ const deleteIncident = async (req, res) => {
       }
     }
     await Incident.findByIdAndDelete(id);
-    await logAudit("deleted incident", req.user.id, id);
+    // Log audit with incident details
+    await logAudit("deleted incident", req.user.id, id, {
+      title: incident.title,
+      status: incident.status,
+      assignedTo: incident.assignedTo,
+    }, req.requestId, req);
     res.json({ message: "Incident deleted" });
   } catch (err) {
     console.error("Failed to delete incident:", err);
@@ -499,7 +549,7 @@ const archiveIncident = async (req, res) => {
     incident.archivedAt = new Date();
     await incident.save();
     // Log audit
-    await logAudit("archived incident", req.user.id, id);
+    await logAudit("archived incident", req.user.id, id, null, req.requestId, req);
     res.json(incident);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -522,15 +572,22 @@ const getArchivedIncidents = async (req, res) => {
 // Fetch audit logs with filters and pagination
 const getAuditLogs = async (req, res) => {
   try {
-    const { user, action, incident, startDate, endDate, page = 1, limit = 20 } = req.query;
+    const { user, action, incident, startDate, endDate, sessionId, requestId, page = 1, limit = 20 } = req.query;
     const filter = {};
     if (user) filter.performedBy = user;
     if (action) filter.action = action;
     if (incident) filter.incident = incident;
+    if (sessionId) filter.sessionId = sessionId;
+    if (requestId) filter.requestId = requestId;
     if (startDate || endDate) {
       filter.timestamp = {};
       if (startDate) filter.timestamp.$gte = new Date(startDate);
-      if (endDate) filter.timestamp.$lte = new Date(endDate);
+      if (endDate) {
+        // Include the entire end date
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.timestamp.$lte = end;
+      }
     }
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const logs = await AuditLog.find(filter)
