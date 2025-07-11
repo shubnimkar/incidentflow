@@ -310,6 +310,7 @@ router.put("/teams/:id", teamController.updateTeam);
 router.delete("/teams/:id", teamController.deleteTeam);
 router.post("/teams/:id/add-member", teamController.addMember);
 router.post("/teams/:id/remove-member", teamController.removeMember);
+router.get("/teams/:id/audit-logs", teamController.getTeamAuditLogs);
 
 // Change user role (admin only)
 router.patch("/:id/role", adminController.updateUserRole);

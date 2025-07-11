@@ -14,15 +14,19 @@ const Layout = () => {
   }, [collapsed]);
 
   return (
-    <div className="flex">
-      <Sidebar collapsed={collapsed} toggleSidebar={() => setCollapsed(!collapsed)} />
-      <main
-        className={`transition-all duration-300 min-h-screen w-full ${
-          collapsed ? "ml-16" : "ml-64"
-        } bg-gray-50 dark:bg-gray-900 p-6`}
-      >
-        <Outlet /> {/* 👈 This renders the nested route component */}
-      </main>
+    <div className="flex flex-col min-h-screen">
+      {/* Header with logo */}
+      <header className="flex items-center px-8 py-4 border-b border-gray-200 bg-white shadow-sm z-40">
+        <img src="/logo.png" alt="Incident Flow Logo" className="h-12" style={{maxHeight: '48px', width: 'auto'}} />
+      </header>
+      <div className="flex flex-1">
+        <Sidebar collapsed={collapsed} toggleSidebar={() => setCollapsed(!collapsed)} />
+        <main
+          className="flex-1 transition-all duration-300 bg-gray-50 dark:bg-gray-900 p-6"
+        >
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

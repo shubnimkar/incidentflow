@@ -73,39 +73,39 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
         style={{ minHeight: 72 }}>
         <div className="flex items-center gap-4 w-full">
           {/* Title */}
-          <div className="flex-1 font-extrabold text-lg text-[var(--if-text-main)] break-words" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }} title={incident.title}>{incident.title}</div>
+          <div className="flex-1 font-extrabold text-lg text-[var(--if-text-main)] whitespace-normal break-words min-w-0" title={incident.title}>{incident.title}</div>
           {/* Status */}
-          <div className="w-20 flex items-center justify-center">
+          <div className="flex-1 min-w-0 flex items-center justify-center">
             {incident.status ? (
               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(incident.status)}`}>{incident.status.replace('_', ' ')}</span>
             ) : <span className="text-meta">—</span>}
           </div>
           {/* Priority */}
-          <div className="w-14 flex items-center justify-center">
+          <div className="flex-1 min-w-0 flex items-center justify-center">
             {incident.priority ? <PriorityBadge priority={incident.priority} /> : <span className="text-meta">—</span>}
           </div>
           {/* Commander */}
-          <div className="w-48 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
+          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaUserCircle className="text-gray-400" />
             <span className="truncate">{commander?.name || commander?.email || '—'}</span>
           </div>
           {/* Type */}
-          <div className="w-36 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
+          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaTag className="text-gray-400" />
             <span className="truncate">{incident.incidentType || '—'}</span>
           </div>
           {/* Service */}
-          <div className="w-36 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
+          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaLayerGroup className="text-gray-400" />
             <span className="truncate">{incident.impactedService || '—'}</span>
           </div>
           {/* Urgency */}
-          <div className="w-24 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
+          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaExclamationTriangle className="text-gray-400" />
             <span className="truncate">{incident.urgency || '—'}</span>
           </div>
           {/* Team */}
-          <div className="w-24 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
+          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
             <FaUsers className="text-gray-400" />
             <span className="truncate">{team?.name || '—'}</span>
           </div>
@@ -543,177 +543,147 @@ function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[var(--if-page-bg)] text-[var(--if-text-main)] px-2 sm:px-6 md:px-12 py-4">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <FaExclamationTriangle className="text-white text-sm" />
-                </div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Incident Manager</h1>
-              </div>
-              <div className="hidden md:flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                <span className="flex items-center space-x-1">
-                  <FaBell className="text-yellow-500" />
-                  <span>{overdueCount} Overdue</span>
-                </span>
-              </div>
+    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 min-h-screen">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 lg:px-12 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
+              <FaExclamationTriangle className="text-blue-600 text-xl" />
             </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => handleViewModeChange(viewMode === 'kanban' ? 'list' : 'kanban')}
-                className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                {viewMode === 'kanban' ? 'List View' : 'Kanban View'}
-              </button>
-              <button
-                onClick={() => navigate('/create')}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-              >
-                <FaPlus className="mr-2" />
-                New Incident
-              </button>
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Incident Manager</h1>
+            <span className="flex items-center gap-1 text-sm text-yellow-600 bg-yellow-50 rounded-full px-3 py-1 ml-2 font-medium shadow-sm">
+              <FaBell className="text-yellow-500" />
+              {overdueCount} Overdue
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleViewModeChange(viewMode === 'kanban' ? 'list' : 'kanban')}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors"
+            >
+              {viewMode === 'kanban' ? 'List View' : 'Kanban View'}
+            </button>
+            <button
+              onClick={() => navigate('/create')}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-white bg-blue-600 hover:bg-blue-700 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              <FaPlus className="mr-2" />
+              New Incident
+            </button>
           </div>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 lg:px-12 py-10">
         {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                  <FaExclamationTriangle className="text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Incidents</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalIncidents}</p>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+          <div className="bg-blue-50 dark:bg-blue-900/30 rounded-2xl shadow-md border-l-4 border-blue-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
+            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+              <FaExclamationTriangle className="text-blue-600 dark:text-blue-400 text-xl" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Incidents</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalIncidents}</p>
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
-                  <FaClock className="text-yellow-600 dark:text-yellow-400" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{overdueCount}</p>
-              </div>
+          <div className="bg-yellow-50 dark:bg-yellow-900/30 rounded-2xl shadow-md border-l-4 border-yellow-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
+            <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
+              <FaClock className="text-yellow-600 dark:text-yellow-400 text-xl" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{overdueCount}</p>
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                  <FaCheckCircle className="text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Resolved</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{resolvedCount}</p>
-              </div>
+          <div className="bg-green-50 dark:bg-green-900/30 rounded-2xl shadow-md border-l-4 border-green-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+              <FaCheckCircle className="text-green-600 dark:text-green-400 text-xl" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Resolved</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{resolvedCount}</p>
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                  <FaCheckCircle className="text-gray-500 dark:text-gray-300" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Closed Incidents</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{closedCount}</p>
-              </div>
+          <div className="bg-gray-50 dark:bg-gray-800/60 rounded-2xl shadow-md border-l-4 border-gray-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
+            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+              <FaCheckCircle className="text-gray-500 dark:text-gray-300 text-xl" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Closed Incidents</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{closedCount}</p>
             </div>
           </div>
         </div>
-
-        {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4">
-          <div className="flex gap-3 flex-wrap items-center">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
-                <input
-                  type="text"
-                  placeholder="Search incidents..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-8 py-1.5 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm h-9 transition-all duration-200 shadow-sm"
-                  ref={searchInputRef}
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none"
-                    onClick={() => {
-                      setSearchTerm("");
-                      searchInputRef.current && searchInputRef.current.focus();
-                    }}
-                    aria-label="Clear search"
-                  >
-                    <FaTimes />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border px-2 py-1.5 rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-9 min-w-[120px]"
-            >
-              <option value="">All Statuses</option>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-            </select>
-
-            <select
-              value={assignedUserFilter}
-              onChange={(e) => setAssignedUserFilter(e.target.value)}
-              className="border px-2 py-1.5 rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-9 min-w-[120px]"
-            >
-              <option value="">All Assignees</option>
-              {users.map((user) => (
-                <option key={user._id} value={user._id}>
-                  {user.name || user.email} {user.role === "admin" ? "👑" : ""}
-                </option>
-              ))}
-            </select>
-
-            <div className="flex items-center gap-2">
-              <select
-                value={teamFilter}
-                onChange={(e) => setTeamFilter(e.target.value)}
-                className="border px-2 py-1.5 rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-9 min-w-[120px]"
+        {/* Filter Bar */}
+        <div className="bg-white dark:bg-gray-800 rounded-full shadow-md border border-gray-200 dark:border-gray-700 px-8 py-5 mb-10 flex flex-wrap gap-4 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+            <input
+              type="text"
+              placeholder="Search incidents..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-8 py-2 border-0 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm h-10 transition-all duration-200 shadow-none"
+              ref={searchInputRef}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none"
+                onClick={() => {
+                  setSearchTerm("");
+                  searchInputRef.current && searchInputRef.current.focus();
+                }}
+                aria-label="Clear search"
               >
-                <option value="">All Teams</option>
-                {teams.map((team) => (
-                  <option key={team._id} value={team._id}>{team.name}</option>
-                ))}
-              </select>
-            </div>
+                <FaTimes />
+              </button>
+            )}
           </div>
-          {user?.role !== 'admin' && (
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-              <FaShieldAlt className="text-yellow-500" />
-              <span>Admin privileges required for editing incidents. View-only mode for non-admin users.</span>
-            </div>
-          )}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border-0 px-4 py-2 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 min-w-[120px] shadow-none"
+          >
+            <option value="">All Statuses</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+          </select>
+          <select
+            value={assignedUserFilter}
+            onChange={(e) => setAssignedUserFilter(e.target.value)}
+            className="border-0 px-4 py-2 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 min-w-[120px] shadow-none"
+          >
+            <option value="">All Assignees</option>
+            {users.map((user) => (
+              <option key={user._id} value={user._id}>
+                {user.name || user.email} {user.role === "admin" ? "👑" : ""}
+              </option>
+            ))}
+          </select>
+          <select
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+            className="border-0 px-4 py-2 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 min-w-[120px] shadow-none"
+          >
+            <option value="">All Teams</option>
+            {teams.map((team) => (
+              <option key={team._id} value={team._id}>{team.name}</option>
+            ))}
+          </select>
+          {/* Reset Filters Button */}
+          <button
+            onClick={() => {
+              setSearchTerm("");
+              setStatusFilter("");
+              setAssignedUserFilter("");
+              setTeamFilter("");
+            }}
+            className="ml-auto px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors shadow-none"
+          >
+            Reset Filters
+          </button>
         </div>
 
         {/* Bulk Action Bar */}

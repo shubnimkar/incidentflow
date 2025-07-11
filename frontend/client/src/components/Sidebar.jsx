@@ -1,19 +1,7 @@
 // src/components/Sidebar.jsx
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  FaBars,
-  FaSignOutAlt,
-  FaMoon,
-  FaSun,
-  FaTachometerAlt,
-  FaPlusCircle,
-  FaUsersCog,
-  FaCalendarAlt,
-  FaClock,
-  FaUserFriends,
-  FaUsers,
-} from "react-icons/fa";
+// Requires Line Awesome CDN in public/index.html
 import { useAuth } from "../context/AuthContext";
 import { DarkModeContext } from "../context/DarkModeContext";
 
@@ -22,43 +10,39 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const { darkMode, toggleDarkMode } = React.useContext(DarkModeContext);
-  console.log("Sidebar user:", user); // 👈 Check this
-
-  const activeClass = "flex items-center space-x-3 px-3 py-2 rounded bg-gray-300 dark:bg-gray-700 text-sm";
-  const inactiveClass = "flex items-center space-x-3 px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-sm";
 
   const navLinks = [
     {
       label: "Dashboard",
       path: "/dashboard",
-      icon: <FaTachometerAlt />,
+      icon: <i className="la la-tachometer-alt"></i>,
     },
     {
       label: "On-Call Status",
       path: "/oncall-status",
-      icon: <FaClock />,
+      icon: <i className="la la-clock"></i>,
     },
     {
       label: "Create Incident",
       path: "/create",
-      icon: <FaPlusCircle />,
+      icon: <i className="la la-plus-circle"></i>,
     },
     {
       label: "Admin Panel",
       path: "/admin",
-      icon: <FaUsersCog />,
+      icon: <i className="la la-users-cog"></i>,
       adminOnly: true,
     },
     {
       label: "On-Call Rotations",
       path: "/oncall-rotations",
-      icon: <FaCalendarAlt />,
+      icon: <i className="la la-calendar-alt"></i>,
       adminOnly: true,
     },
     {
       label: "Closed Cases",
       path: "/closed-cases",
-      icon: <FaClock />,
+      icon: <i className="la la-clock"></i>,
       adminOnly: true,
     },
   ];
@@ -69,58 +53,74 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
   };
 
   return (
-    <div
-      className={`${
-        collapsed ? "w-16" : "w-64"
-      } fixed inset-y-0 left-0 z-30 bg-white dark:bg-gray-900 text-gray-800 dark:text-white border-r dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col`}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
-        {!collapsed && <span className="font-bold text-lg">Incident Manager</span>}
-        <button
-          onClick={toggleSidebar}
-          className="text-gray-700 dark:text-white text-xl ml-auto"
-        >
-          <FaBars />
-        </button>
-      </div>
-
-      {/* Nav Links */}
-      <nav className="flex-1 p-2 space-y-2">
-        {navLinks.map(
-          (link) =>
+    <>
+      {/* Mobile overlay (for mobile logic, just add the class for now) */}
+      <div className={`fixed inset-0 z-20 bg-black/30 transition-opacity duration-300 ${collapsed ? 'hidden' : 'block'} md:hidden`} />
+      <aside
+        className={`
+          ${collapsed ? 'w-16' : 'w-52'}
+          h-screen flex-shrink-0 sticky top-0
+          bg-white dark:bg-gray-900
+          text-gray-800 dark:text-white
+          border-r border-gray-200 dark:border-gray-800
+          flex flex-col
+          shadow-xl
+          transition-all duration-300
+          overflow-y-auto
+        `}
+      >
+        {/* Logo */}
+        {/* Collapse/Expand Button */}
+        <div className="flex items-center justify-end px-2 pb-3">
+          <button
+            onClick={toggleSidebar}
+            className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-300 text-xl p-2 rounded-full transition shadow-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <span className="sidebar-icon"><i className="la la-bars"></i></span>
+          </button>
+        </div>
+        {/* Nav Links */}
+        <nav className={`flex-1 ${collapsed ? 'px-1 py-2' : 'px-2 py-4'} space-y-2 mt-2`}> 
+          {navLinks.map((link) =>
             (!link.adminOnly || user?.role === "admin") && (
               <Link
                 key={link.path}
                 to={link.path}
-                className={`flex items-center space-x-3 px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-sm ${
-                  location.pathname === link.path
-                    ? "bg-gray-300 dark:bg-gray-700"
-                    : ""
-                }`}
+                className={`group flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0' : 'px-4'} py-2 rounded-lg transition-all duration-200 font-medium text-base relative overflow-hidden
+                  ${location.pathname === link.path
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow font-bold border-l-4 border-blue-500"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-[1.03] text-gray-700 dark:text-gray-200"}
+                `}
+                title={link.label}
               >
-                <span>{link.icon}</span>
-                {!collapsed && <span>{link.label}</span>}
+                <span className={`text-lg sidebar-icon${location.pathname === link.path ? ' active' : ''}`}>{link.icon}</span>
+                {!collapsed && <span className="transition-opacity duration-200">{link.label}</span>}
+                {collapsed && <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">{link.label}</span>}
               </Link>
             )
-        )}
-        {/* Directory Group */}
-        <div className="mt-4">
-          {!collapsed && (
-            <div className="uppercase text-xs text-gray-400 dark:text-gray-500 font-bold px-3 mb-1 flex items-center gap-2">
-              <FaUsers className="inline-block" /> People
-            </div>
           )}
-          <ul className={`space-y-1 ${!collapsed ? 'ml-4' : ''}`}>
+          {/* Divider before People section */}
+          <div className="my-6 border-t border-gray-200 dark:border-gray-800" />
+          <div className={`uppercase text-xs tracking-wider font-bold ${collapsed ? 'px-0 justify-center' : 'px-4'} mb-2 flex items-center gap-2 text-gray-400 dark:text-gray-500`}> 
+            <i className="la la-users inline-block"></i>
+            {!collapsed && 'People'}
+          </div>
+          <ul className={`space-y-1 ${collapsed ? '' : 'ml-4'}`}> 
             {user?.role === 'admin' && (
               <li>
                 <Link
                   to="/users"
-                  className={location.pathname.startsWith("/users") ? activeClass : inactiveClass}
+                  className={`group flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0' : 'px-3'} py-2 rounded-lg transition-all duration-200 font-medium text-base relative overflow-hidden
+                    ${location.pathname.startsWith("/users")
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow font-bold border-l-4 border-blue-500"
+                      : "hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-[1.03] text-gray-700 dark:text-gray-200"}
+                  `}
                   title="Users"
                 >
-                  <span className="mr-2"><FaUserFriends /></span>
-                  {!collapsed && "Users"}
+                  <span className={`text-lg sidebar-icon${location.pathname.startsWith('/users') ? ' active' : ''}`}> <i className="la la-user-friends"></i> </span>
+                  {!collapsed && <span className="transition-opacity duration-200">Users</span>}
+                  {collapsed && <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">Users</span>}
                 </Link>
               </li>
             )}
@@ -128,51 +128,57 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               <li>
                 <Link
                   to="/teams"
-                  className={location.pathname.startsWith("/teams") ? activeClass : inactiveClass}
+                  className={`group flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0' : 'px-3'} py-2 rounded-lg transition-all duration-200 font-medium text-base relative overflow-hidden
+                    ${location.pathname.startsWith("/teams")
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow font-bold border-l-4 border-blue-500"
+                      : "hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-[1.03] text-gray-700 dark:text-gray-200"}
+                  `}
                   title="Teams"
                 >
-                  <span className="mr-2"><FaUsers /></span>
-                  {!collapsed && "Teams"}
+                  <span className={`text-lg sidebar-icon${location.pathname.startsWith('/teams') ? ' active' : ''}`}> <i className="la la-users"></i> </span>
+                  {!collapsed && <span className="transition-opacity duration-200">Teams</span>}
+                  {collapsed && <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">Teams</span>}
                 </Link>
               </li>
             )}
             <li>
               <Link
                 to="/profile"
-                className={location.pathname.startsWith("/profile") ? activeClass : inactiveClass}
+                className={`group flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0' : 'px-3'} py-2 rounded-lg transition-all duration-200 font-medium text-base relative overflow-hidden
+                  ${location.pathname.startsWith("/profile")
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow font-bold border-l-4 border-blue-500"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-[1.03] text-gray-700 dark:text-gray-200"}
+                `}
                 title="Profile"
               >
-                <span className="mr-2"><FaUserFriends /></span>
-                {!collapsed && "Profile"}
+                <span className={`text-lg sidebar-icon${location.pathname.startsWith('/profile') ? ' active' : ''}`}> <i className="la la-user-friends"></i> </span>
+                {!collapsed && <span className="transition-opacity duration-200">Profile</span>}
+                {collapsed && <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">Profile</span>}
               </Link>
             </li>
           </ul>
+        </nav>
+        {/* Bottom controls */}
+        <div className={`p-4 border-t border-gray-200 dark:border-gray-800 space-y-4 mt-auto ${collapsed ? 'items-center' : ''} bg-white dark:bg-gray-900`}> 
+          {/* Dark Mode Toggle as pill switch */}
+          <button
+            onClick={toggleDarkMode}
+            className={`flex items-center w-full ${collapsed ? 'justify-center' : 'gap-3'} py-2 ${collapsed ? 'px-0' : 'px-3'} hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-base font-medium transition-all duration-200 border border-gray-200 dark:border-gray-700`}
+          >
+            <span className={`text-lg sidebar-icon${darkMode ? ' active' : ''}`}>{darkMode ? <i className="la la-sun"></i> : <i className="la la-moon"></i>}</span>
+            {!collapsed && <span>{darkMode ? "Light Mode" : "Dark Mode"}</span>}
+          </button>
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className={`flex items-center w-full ${collapsed ? 'justify-center' : 'gap-3'} py-2 ${collapsed ? 'px-0' : 'px-3'} hover:bg-red-50 dark:hover:bg-red-900 text-red-700 dark:text-red-300 rounded-full text-base font-medium transition-all duration-200 border border-gray-200 dark:border-gray-700`}
+          >
+            <span className="text-lg sidebar-icon"><i className="la la-sign-out-alt"></i></span>
+            {!collapsed && <span>Logout</span>}
+          </button>
         </div>
-      </nav>
-
-      {/* Bottom controls */}
-      <div className="p-4 border-t dark:border-gray-700 space-y-2">
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="flex items-center w-full space-x-3 py-2 px-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm"
-        >
-          <span>{darkMode ? <FaSun /> : <FaMoon />}</span>
-          {!collapsed && (
-            <span>{darkMode ? "Light Mode" : "Dark Mode"}</span>
-          )}
-        </button>
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="flex items-center w-full space-x-3 py-2 px-2 hover:bg-red-600 dark:hover:bg-red-700 rounded text-sm"
-        >
-          <FaSignOutAlt />
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
-    </div>
+      </aside>
+    </>
   );
 };
 

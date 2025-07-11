@@ -316,10 +316,24 @@ export default function AuditLogsSection() {
                       <span title={new Date(log.timestamp).toLocaleString()}>{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}</span>
                     </td>
                     <td className="px-4 py-2 font-mono text-xs truncate max-w-[120px]" title={log.requestId}>{log.requestId || '-'}</td>
-                    <td className="px-4 py-2">
-                      <button className="text-blue-600 underline text-xs" onClick={() => setExpanded(expanded === log._id ? null : log._id)}>
-                        {expanded === log._id ? 'Hide' : 'Show'}
-                      </button>
+                    <td className="px-4 py-2 text-xs text-gray-700 dark:text-gray-200">
+                      {log.action === 'updated field' && log.details && log.details.field ? (
+                        <span>
+                          <strong>{log.details.field.charAt(0).toUpperCase() + log.details.field.slice(1)}</strong>
+                          {` changed from `}
+                          <span className="font-mono bg-gray-100 dark:bg-gray-800 rounded px-1">{String(log.details.oldValue)}</span>
+                          {` to `}
+                          <span className="font-mono bg-gray-100 dark:bg-gray-800 rounded px-1">{String(log.details.newValue)}</span>
+                        </span>
+                      ) : log.action === 'assigned incident' && log.details && log.details.assignedToEmail ? (
+                        <span>Assigned to <span className="font-mono">{log.details.assignedToEmail}</span>{log.details.incidentTitle ? ` for "${log.details.incidentTitle}"` : ''}</span>
+                      ) : log.action === 'closed incident' ? (
+                        <span>Incident closed</span>
+                      ) : log.details && typeof log.details === 'string' ? (
+                        <span>{log.details}</span>
+                      ) : (
+                        <span>-</span>
+                      )}
                     </td>
                   </tr>
                   {expanded === log._id && (

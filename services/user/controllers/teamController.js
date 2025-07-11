@@ -1,5 +1,6 @@
 const Team = require("../models/Team");
 const User = require("../models/User");
+const TeamAuditLog = require("../models/TeamAuditLog");
 
 // Create a new team
 exports.createTeam = async (req, res) => {
@@ -7,6 +8,12 @@ exports.createTeam = async (req, res) => {
     const { name, description, members } = req.body;
     const team = new Team({ name, description, members });
     await team.save();
+    await TeamAuditLog.create({
+      action: "created team",
+      team: team._id,
+      performedBy: req.user._id,
+      details: { name, description, members },
+    });
     res.status(201).json(team);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -44,6 +51,12 @@ exports.updateTeam = async (req, res) => {
       { new: true }
     ).populate("members", "name email role");
     if (!team) return res.status(404).json({ message: "Team not found" });
+    await TeamAuditLog.create({
+      action: "updated team",
+      team: team._id,
+      performedBy: req.user._id,
+      details: { name, description, members },
+    });
     res.json(team);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -55,6 +68,12 @@ exports.deleteTeam = async (req, res) => {
   try {
     const team = await Team.findByIdAndDelete(req.params.id);
     if (!team) return res.status(404).json({ message: "Team not found" });
+    await TeamAuditLog.create({
+      action: "deleted team",
+      team: team._id,
+      performedBy: req.user._id,
+      details: { name: team.name, description: team.description, members: team.members },
+    });
     res.json({ message: "Team deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -70,6 +89,12 @@ exports.addMember = async (req, res) => {
     if (!team.members.includes(userId)) {
       team.members.push(userId);
       await team.save();
+      await TeamAuditLog.create({
+        action: "added member",
+        team: team._id,
+        performedBy: req.user._id,
+        details: { userId },
+      });
     }
     res.json(team);
   } catch (err) {
@@ -85,8 +110,27 @@ exports.removeMember = async (req, res) => {
     if (!team) return res.status(404).json({ message: "Team not found" });
     team.members = team.members.filter(id => id.toString() !== userId);
     await team.save();
+    await TeamAuditLog.create({
+      action: "removed member",
+      team: team._id,
+      performedBy: req.user._id,
+      details: { userId },
+    });
     res.json(team);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+};
+
+// Get audit logs for a team
+exports.getTeamAuditLogs = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const logs = await TeamAuditLog.find({ team: id })
+      .populate('performedBy', 'name email')
+      .sort({ timestamp: -1 });
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 }; 
