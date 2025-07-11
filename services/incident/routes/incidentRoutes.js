@@ -22,6 +22,7 @@ const {
   archiveIncident,
   getArchivedIncidents,
   getAuditLogs,
+  getAuditLogMetrics,
 } = require("../controllers/incidentController");
 
 const { verifyToken, canEditIncident } = require("../middleware/auth");
@@ -47,6 +48,8 @@ router.patch('/:id/comments/:commentId/reactions', verifyToken, verifyToken, rea
 
 // Admin: Audit logs with filters and pagination (must be before any '/:id' routes)
 router.get('/audit-logs', verifyToken, requireAdmin, getAuditLogs);
+// Admin: Audit log metrics (last 24h/7d)
+router.get('/audit-log-metrics', verifyToken, requireAdmin, getAuditLogMetrics);
 
 // Public routes — any logged-in user
 router.post('/', verifyToken, createIncident);

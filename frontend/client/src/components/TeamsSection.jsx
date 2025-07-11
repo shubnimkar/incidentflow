@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { io } from "socket.io-client";
+import { useRef } from "react";
 
 export default function TeamsSection() {
   const [teams, setTeams] = useState([]);
@@ -26,6 +28,17 @@ export default function TeamsSection() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState("");
+  const socketRef = useRef(null);
+  // Add a state to control showing the add member form
+  const [showAddMemberForm, setShowAddMemberForm] = useState(false);
+
+  // Helper to update detailsTeam after teams are fetched
+  const updateDetailsTeam = (teamsArr, currentDetailsTeam) => {
+    if (currentDetailsTeam) {
+      const updated = teamsArr.find(t => t._id === currentDetailsTeam._id);
+      if (updated) setDetailsTeam({ ...updated });
+    }
+  };
 
   const fetchTeams = async () => {
     setLoading(true);
@@ -36,6 +49,7 @@ export default function TeamsSection() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setTeams(res.data);
+      updateDetailsTeam(res.data, detailsTeam);
     } catch (err) {
       setError("Failed to load teams");
     } finally {
@@ -80,6 +94,29 @@ export default function TeamsSection() {
     fetchTeams();
   }, []);
 
+  // Automatically select the first team when teams are loaded
+  useEffect(() => {
+    if (teams.length > 0 && !detailsTeam) {
+      setDetailsTeam(teams[0]);
+    }
+  }, [teams]);
+
+  // Real-time updates for teams and team audit logs
+  useEffect(() => {
+    socketRef.current = io("http://localhost:5001");
+    socketRef.current.on("teamUpdated", () => {
+      fetchTeams();
+    });
+    socketRef.current.on("teamAuditLogCreated", (log) => {
+      if (detailsTeam && (log.team === detailsTeam._id || (log.team?._id && log.team._id === detailsTeam._id))) {
+        refreshAuditLogs(detailsTeam._id);
+      }
+    });
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, [detailsTeam]);
+
   const handleAddTeam = async (e) => {
     e.preventDefault();
     setAddLoading(true);
@@ -118,11 +155,14 @@ export default function TeamsSection() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setEditTeam(null);
-      fetchTeams();
-      // If editing the team currently shown in details modal, refresh audit logs
+      await fetchTeams();
+      // If editing the team currently shown in details modal, update detailsTeam with the latest data
       if (detailsTeam && detailsTeam._id === editTeam._id) {
-        refreshAuditLogs(editTeam._id);
+        const updated = teams.find(t => t._id === editTeam._id);
+        if (updated) setDetailsTeam({ ...updated });
       }
+      // Optionally, close add member form if open
+      setShowAddMemberForm(false);
     } catch (err) {
       setEditError(err.response?.data?.message || "Failed to update team");
     } finally {
@@ -173,9 +213,9 @@ export default function TeamsSection() {
       );
       setAddMemberId("");
       fetchTeams();
-      setDetailsTeam(
-        teams.find(t => t._id === detailsTeam._id)
-      );
+      // setDetailsTeam(
+      //   teams.find(t => t._id === detailsTeam._id)
+      // ); // This line is removed as per the edit hint
       // Refresh audit logs after adding member
       refreshAuditLogs(detailsTeam._id);
     } catch (err) {
@@ -195,9 +235,9 @@ export default function TeamsSection() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       fetchTeams();
-      setDetailsTeam(
-        teams.find(t => t._id === detailsTeam._id)
-      );
+      // setDetailsTeam(
+      //   teams.find(t => t._id === detailsTeam._id)
+      // ); // This line is removed as per the edit hint
       // Refresh audit logs after removing member
       refreshAuditLogs(detailsTeam._id);
     } catch (err) {
@@ -207,90 +247,175 @@ export default function TeamsSection() {
     }
   };
 
+  function stringToColor(str) {
+    // Simple hash to color mapping for consistent avatar backgrounds
+    const colors = [
+      'bg-green-400', 'bg-blue-400', 'bg-purple-400', 'bg-pink-400', 'bg-yellow-400', 'bg-red-400', 'bg-indigo-400', 'bg-teal-400', 'bg-orange-400', 'bg-cyan-400'
+    ];
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  }
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Teams</h2>
-        <button
-          className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition text-base font-semibold"
-          onClick={() => setShowAddModal(true)}
-        >
-          <span className="text-xl">+</span> Add Team
-        </button>
-      </div>
-      {loading ? (
-        <div className="py-8 text-center text-gray-400">Loading...</div>
-      ) : error ? (
-        <div className="py-8 text-center text-red-500">{error}</div>
-      ) : teams.length === 0 ? (
-        <div className="py-8 text-center text-gray-400">No teams found.</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto text-sm rounded-xl overflow-hidden shadow border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <thead className="bg-gray-100 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 font-semibold uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-3 text-left">Team</th>
-                <th className="px-4 py-3 text-left">Members</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {teams.map(team => (
-                <tr key={team._id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-900 transition group">
-                  <td className="px-4 py-3 font-medium flex items-center gap-3">
-                    <span className="inline-block w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow">
-                      {team.name?.[0]?.toUpperCase()}
-                    </span>
-                    <button className="text-blue-700 underline hover:text-blue-900 text-base font-semibold" onClick={() => handleShowDetails(team)}>{team.name}</button>
-                  </td>
-                  <td className="px-4 py-3 text-base">{team.members ? team.members.length : 0}</td>
-                  <td className="px-4 py-3 flex gap-2 items-center">
-                    <button
-                      className="p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-600"
-                      onClick={() => handleEditTeam(team)}
-                      title="Edit"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3h3z" /></svg>
-                    </button>
-                    <button
-                      className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900 text-red-600"
-                      onClick={() => handleDeleteTeam(team)}
-                      title="Delete"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <>
+      <div className="flex gap-8 bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 font-sans">
+        {/* Sidebar: Team List */}
+        <div className="w-64 flex-shrink-0">
+          <h2 className="text-2xl font-extrabold mb-6 text-gray-900 dark:text-white tracking-tight font-sans">Teams</h2>
+          <div className="flex flex-col gap-2 mb-4">
+            {teams.map(team => (
+              <button
+                key={team._id}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-lg font-semibold font-sans transition border border-transparent hover:bg-gray-100 dark:hover:bg-gray-700 ${detailsTeam && detailsTeam._id === team._id ? 'bg-gray-100 dark:bg-gray-700 border-blue-400 dark:border-blue-500' : ''}`}
+                onClick={() => handleShowDetails(team)}
+              >
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-blue-500">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.5 6.75a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zM4.75 6.75a2.25 2.25 0 114.5 0 2.25 2.25 0 01-4.5 0zM12 17.25c2.485 0 4.5-1.12 4.5-2.5v-1.25a2.25 2.25 0 00-2.25-2.25h-4.5A2.25 2.25 0 006 13.5v1.25c0 1.38 2.015 2.5 4.5 2.5z" />
+                  </svg>
+                </span>
+                <span>{team.name}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            className="w-full mt-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold text-lg font-sans hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+            onClick={() => setShowAddModal(true)}
+          >
+            New Team
+          </button>
         </div>
-      )}
+        {/* Main Panel: Team Details */}
+        <div className="flex-1">
+          {detailsTeam ? (
+            <div>
+              <div className="flex items-center gap-4 mb-2">
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight font-sans">{detailsTeam.name}</h2>
+                <button className="text-blue-600 hover:underline text-base font-semibold font-sans" onClick={() => handleEditTeam(detailsTeam)}>Edit</button>
+              </div>
+              <div className="text-gray-500 dark:text-gray-400 mb-6 font-sans">{detailsTeam.description || 'No description'}</div>
+              <h3 className="text-xl font-bold mb-2 font-sans">Team Members</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto text-base rounded-xl overflow-hidden shadow border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 font-sans">
+                  <thead className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold font-sans">
+                    <tr>
+                      <th className="px-6 py-3 text-left">Name</th>
+                      <th className="px-6 py-3 text-left">Role</th>
+                      <th className="px-6 py-3 text-left">Contact</th>
+                      <th className="px-6 py-3 text-left">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailsTeam.members && detailsTeam.members.length > 0 ? detailsTeam.members.map(member => (
+                      <tr key={member._id || member.email} className="border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition group">
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-4">
+                            {/* Avatar/Initial */}
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold shadow-sm ${stringToColor(member.name || member.email)}`}> {/* Color helper below */}
+                              {member.avatarUrl ? (
+                                <img src={member.avatarUrl} alt={member.name || member.email} className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                (member.name || member.email)?.[0]?.toUpperCase()
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-lg text-gray-900 dark:text-white">{member.name || member.email}</div>
+                              <div className="text-gray-500 text-sm">{member.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${member.role === 'admin' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{member.role?.toUpperCase()}</span>
+                        </td>
+                        <td className="px-6 py-3 text-gray-500 dark:text-gray-300">{member.email}</td>
+                        <td className="px-6 py-3">
+                          <button
+                            className="text-red-600 hover:underline font-semibold font-sans"
+                            onClick={() => handleRemoveMember(member._id || member.email)}
+                            disabled={removeMemberLoading === (member._id || member.email)}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={4} className="text-center text-gray-400 py-6 font-sans">No members</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {/* Add Member Button and Form */}
+              {showAddMemberForm ? (
+                <form onSubmit={handleAddMember} className="flex gap-2 items-center mt-6 font-sans">
+                  <select
+                    className="border rounded px-2 py-2 w-full max-w-xs font-sans"
+                    value={addMemberId}
+                    onChange={e => setAddMemberId(e.target.value)}
+                    disabled={addMemberLoading || memberLoading}
+                  >
+                    <option value="">Add member...</option>
+                    {users.filter(u => !detailsTeam.members.some(m => m._id === u._id)).map(u => (
+                      <option key={u._id} value={u._id}>{u.name || u.email} ({u.email})</option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold font-sans"
+                    disabled={addMemberLoading || !addMemberId}
+                  >
+                    {addMemberLoading ? "Adding..." : "Add"}
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 font-semibold font-sans"
+                    onClick={() => setShowAddMemberForm(false)}
+                  >
+                    Cancel
+                  </button>
+                  {addMemberError && <span className="text-red-500 text-xs ml-2 font-sans">{addMemberError}</span>}
+                </form>
+              ) : (
+                <button
+                  className="mt-6 px-6 py-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold text-lg font-sans hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                  onClick={() => { setShowAddMemberForm(true); fetchUsers(); }}
+                >
+                  Add Member
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-400 text-xl font-sans">Select a team to view details</div>
+          )}
+        </div>
+      </div>
 
       {/* Add Team Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 font-sans">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-bold mb-4">Add New Team</h3>
             <form onSubmit={handleAddTeam} className="flex flex-col gap-3">
               <input
-                className="border rounded px-3 py-2"
+                className="border rounded px-3 py-2 font-sans"
                 placeholder="Team Name"
                 value={newTeam.name}
                 onChange={e => setNewTeam(t => ({ ...t, name: e.target.value }))}
                 required
               />
               <textarea
-                className="border rounded px-3 py-2"
+                className="border rounded px-3 py-2 font-sans"
                 placeholder="Description (optional)"
                 value={newTeam.description}
                 onChange={e => setNewTeam(t => ({ ...t, description: e.target.value }))}
               />
-              {addError && <div className="text-red-500 text-sm">{addError}</div>}
+              {addError && <div className="text-red-500 text-sm font-sans">{addError}</div>}
               <div className="flex gap-2 mt-2">
                 <button
                   type="button"
-                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 font-semibold font-sans"
                   onClick={() => setShowAddModal(false)}
                   disabled={addLoading}
                 >
@@ -298,7 +423,7 @@ export default function TeamsSection() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold font-sans"
                   disabled={addLoading}
                 >
                   {addLoading ? "Adding..." : "Add Team"}
@@ -309,167 +434,30 @@ export default function TeamsSection() {
         </div>
       )}
 
-      {/* Team Details Modal */}
-      {detailsTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-3xl p-0 flex flex-col max-h-[90vh] overflow-hidden">
-            {/* Sticky Header */}
-            <div className="flex items-center justify-between px-8 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-10">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-2xl font-bold">
-                  {detailsTeam.name?.[0]?.toUpperCase()}
-                </div>
-                <div>
-                  <div className="text-xl font-bold">{detailsTeam.name}</div>
-                  <div className="text-gray-500 text-sm">{detailsTeam.description || <span className="text-gray-400">No description</span>}</div>
-                </div>
-              </div>
-              <button className="text-gray-400 hover:text-gray-700 text-3xl" onClick={() => setDetailsTeam(null)}>&times;</button>
-            </div>
-            {/* Content */}
-            <div className="flex flex-col md:flex-row gap-0 md:gap-8 px-8 py-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
-              {/* Left: Members & Add Member */}
-              <div className="w-full md:w-1/2 pr-0 md:pr-4 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-800 pb-6 md:pb-0">
-                <div className="mb-6">
-                  <div className="font-semibold mb-2 text-lg flex items-center gap-2">
-                    Members <span className="bg-gray-200 dark:bg-gray-700 text-xs px-2 py-0.5 rounded-full">{detailsTeam.members?.length || 0}</span>
-                  </div>
-                  {memberLoading ? (
-                    <div className="text-gray-400">Loading users...</div>
-                  ) : memberError ? (
-                    <div className="text-red-500">{memberError}</div>
-                  ) : (
-                    <div className="flex flex-wrap gap-3 mb-3">
-                      {(detailsTeam.members || []).map(m => (
-                        <div key={m._id} className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1">
-                          <span className="inline-block w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-base" title={m.email}>
-                            {m.name ? m.name[0].toUpperCase() : m.email[0].toUpperCase()}
-                          </span>
-                          <span className="text-sm font-medium" title={m.email}>{m.name || m.email}</span>
-                          <button
-                            className="ml-2 px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200"
-                            onClick={() => handleRemoveMember(m._id)}
-                            disabled={removeMemberLoading === m._id}
-                          >
-                            {removeMemberLoading === m._id ? "..." : <span>&times;</span>}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <form onSubmit={handleAddMember} className="flex gap-2 items-center mt-2">
-                    <select
-                      className="border rounded px-2 py-1 w-full max-w-xs"
-                      value={addMemberId}
-                      onChange={e => setAddMemberId(e.target.value)}
-                      disabled={addMemberLoading || memberLoading}
-                    >
-                      <option value="">Add member...</option>
-                      {users.filter(u => !detailsTeam.members.some(m => m._id === u._id)).map(u => (
-                        <option key={u._id} value={u._id}>{u.name || u.email} ({u.email})</option>
-                      ))}
-                    </select>
-                    <button
-                      type="submit"
-                      className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      disabled={addMemberLoading || !addMemberId}
-                    >
-                      {addMemberLoading ? "Adding..." : "Add"}
-                    </button>
-                    {addMemberError && <span className="text-red-500 text-xs ml-2">{addMemberError}</span>}
-                  </form>
-                </div>
-              </div>
-              {/* Right: Activity Log Timeline */}
-              <div className="w-full md:w-1/2 pl-0 md:pl-4">
-                <div className="font-semibold mb-3 text-lg">Activity Log</div>
-                {auditLoading ? (
-                  <div className="text-gray-400">Loading activity...</div>
-                ) : auditError ? (
-                  <div className="text-red-500">{auditError}</div>
-                ) : auditLogs.length === 0 ? (
-                  <div className="text-gray-400">No activity yet.</div>
-                ) : (
-                  <ol className="relative border-l-2 border-blue-200 dark:border-blue-900 ml-2">
-                    {auditLogs.map(log => {
-                      let icon, color;
-                      switch (log.action) {
-                        case 'added_member':
-                          icon = '➕'; color = 'bg-green-100 text-green-700'; break;
-                        case 'removed_member':
-                          icon = '➖'; color = 'bg-red-100 text-red-700'; break;
-                        case 'created_team':
-                          icon = '🆕'; color = 'bg-blue-100 text-blue-700'; break;
-                        case 'updated_team':
-                          icon = '✏️'; color = 'bg-yellow-100 text-yellow-700'; break;
-                        case 'deleted_team':
-                          icon = '🗑️'; color = 'bg-gray-200 text-gray-700'; break;
-                        default:
-                          icon = '🔔'; color = 'bg-gray-100 text-gray-700';
-                      }
-                      return (
-                        <li key={log._id} className="mb-8 ml-4">
-                          <div className="absolute -left-6 flex items-center justify-center w-10 h-10 rounded-full border-2 border-white shadow-lg z-10 text-xl font-bold bg-white dark:bg-gray-900">
-                            <span className={`inline-block w-8 h-8 rounded-full flex items-center justify-center ${color}`}>{icon}</span>
-                          </div>
-                          <div className="bg-white dark:bg-gray-800 rounded-lg shadow px-4 py-3 ml-2">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-block w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
-                                {log.performedBy?.name ? log.performedBy.name[0].toUpperCase() : (log.performedBy?.email ? log.performedBy.email[0].toUpperCase() : '?')}
-                              </span>
-                              <span className="font-semibold">{log.performedBy?.name || log.performedBy?.email || 'Unknown'}</span>
-                              <span className="text-xs text-gray-400 ml-2">{new Date(log.timestamp).toLocaleString()}</span>
-                            </div>
-                            <div className="text-sm mb-1">
-                              <span className="font-semibold capitalize">{log.action.replace(/_/g, ' ')}</span>
-                            </div>
-                            {log.details && (
-                              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                {typeof log.details === 'object' ? (
-                                  <ul className="list-disc ml-4">
-                                    {Object.entries(log.details).map(([k, v]) => (
-                                      <li key={k}><span className="font-medium">{k}:</span> {String(v)}</li>
-                                    ))}
-                                  </ul>
-                                ) : log.details}
-                              </div>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit Team Modal */}
       {editTeam && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 font-sans">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-bold mb-4">Edit Team</h3>
             <form onSubmit={handleEditSubmit} className="flex flex-col gap-3">
               <input
-                className="border rounded px-3 py-2"
+                className="border rounded px-3 py-2 font-sans"
                 placeholder="Team Name"
                 value={editTeam.name}
                 onChange={e => setEditTeam(t => ({ ...t, name: e.target.value }))}
                 required
               />
               <textarea
-                className="border rounded px-3 py-2"
+                className="border rounded px-3 py-2 font-sans"
                 placeholder="Description (optional)"
                 value={editTeam.description}
                 onChange={e => setEditTeam(t => ({ ...t, description: e.target.value }))}
               />
-              {editError && <div className="text-red-500 text-sm">{editError}</div>}
+              {editError && <div className="text-red-500 text-sm font-sans">{editError}</div>}
               <div className="flex gap-2 mt-2">
                 <button
                   type="button"
-                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 font-semibold font-sans"
                   onClick={() => setEditTeam(null)}
                   disabled={editLoading}
                 >
@@ -477,7 +465,7 @@ export default function TeamsSection() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold font-sans"
                   disabled={editLoading}
                 >
                   {editLoading ? "Saving..." : "Save Changes"}
@@ -490,15 +478,15 @@ export default function TeamsSection() {
 
       {/* Delete Team Modal */}
       {deleteTeam && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 font-sans">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-bold mb-4">Delete Team</h3>
             <p>Are you sure you want to delete the team <span className="font-semibold">{deleteTeam.name}</span>?</p>
-            {deleteError && <div className="text-red-500 text-sm mt-2">{deleteError}</div>}
+            {deleteError && <div className="text-red-500 text-sm mt-2 font-sans">{deleteError}</div>}
             <div className="flex gap-2 mt-4">
               <button
                 type="button"
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 font-semibold font-sans"
                 onClick={() => setDeleteTeam(null)}
                 disabled={deleteLoading}
               >
@@ -506,7 +494,7 @@ export default function TeamsSection() {
               </button>
               <button
                 type="button"
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold font-sans"
                 onClick={handleDeleteConfirm}
                 disabled={deleteLoading}
               >
@@ -516,6 +504,6 @@ export default function TeamsSection() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 } 

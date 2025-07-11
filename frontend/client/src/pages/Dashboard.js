@@ -32,6 +32,7 @@ import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import ConfirmModal from "../components/ConfirmModal";
 import PriorityBadge from "./PriorityBadge";
+import Select from "react-select";
 
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement);
 
@@ -61,61 +62,45 @@ const getStatusBadgeClass = (status) => {
 const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onView, compact }) => {
   const commander = users.find(u => u._id === (incident.assignedTo?._id || incident.assignedTo));
   const team = teams.find(t => t._id === (incident.team?._id || incident.team));
-  if (compact) {
-    // Determine border color by status
-    let borderColor = 'border-l-4 border-gray-200';
-    if (incident.status === 'open' || incident.status === 'in_progress') borderColor = 'border-l-4 border-yellow-400';
-    if (incident.status === 'resolved') borderColor = 'border-l-4 border-green-500';
-    if (incident.status === 'closed') borderColor = 'border-l-4 border-gray-400';
-
+  // Modern card layout for Kanban (not compact)
+  if (!compact) {
     return (
-      <Card className={`card p-5 mb-0 shadow-sm hover:shadow-lg transition-all duration-150 bg-white ${borderColor} font-sans`}
-        style={{ minHeight: 72 }}>
-        <div className="flex items-center gap-4 w-full">
-          {/* Title */}
-          <div className="flex-1 font-extrabold text-lg text-[var(--if-text-main)] whitespace-normal break-words min-w-0" title={incident.title}>{incident.title}</div>
-          {/* Status */}
-          <div className="flex-1 min-w-0 flex items-center justify-center">
-            {incident.status ? (
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(incident.status)}`}>{incident.status.replace('_', ' ')}</span>
-            ) : <span className="text-meta">—</span>}
-          </div>
-          {/* Priority */}
-          <div className="flex-1 min-w-0 flex items-center justify-center">
-            {incident.priority ? <PriorityBadge priority={incident.priority} /> : <span className="text-meta">—</span>}
-          </div>
-          {/* Commander */}
-          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
-            <FaUserCircle className="text-gray-400" />
-            <span className="truncate">{commander?.name || commander?.email || '—'}</span>
-          </div>
-          {/* Type */}
-          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
-            <FaTag className="text-gray-400" />
-            <span className="truncate">{incident.incidentType || '—'}</span>
-          </div>
-          {/* Service */}
-          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
-            <FaLayerGroup className="text-gray-400" />
-            <span className="truncate">{incident.impactedService || '—'}</span>
-          </div>
-          {/* Urgency */}
-          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
-            <FaExclamationTriangle className="text-gray-400" />
-            <span className="truncate">{incident.urgency || '—'}</span>
-          </div>
-          {/* Team */}
-          <div className="flex-1 min-w-0 flex items-center gap-1 text-xs text-[var(--if-text-meta)]">
-            <FaUsers className="text-gray-400" />
-            <span className="truncate">{team?.name || '—'}</span>
-          </div>
-          {/* Actions */}
-          <div className="flex-shrink-0 flex gap-2 items-center">
-            <button className="btn-primary px-3 py-1 rounded text-xs font-semibold" onClick={() => onView(incident)}>View</button>
-            <button className="p-2 rounded-full bg-red-100 text-red-700 hover:bg-red-200" title="Delete" onClick={() => onDelete(incident)}><FaTrash /></button>
+      <div className="bg-white border border-gray-200 rounded-2xl shadow p-5 flex flex-col gap-2 hover:shadow-lg transition-all duration-150 font-sans">
+        <div className="flex items-start gap-2 mb-1">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-1">
+              <span className="text-2xl font-extrabold text-gray-900 break-words">{incident.title}</span>
+              {incident.status && (
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-100 capitalize">{incident.status.replace('_', ' ')}</span>
+              )}
+              {incident.priority && (
+                <span className="ml-1"><PriorityBadge priority={incident.priority} /></span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700 mb-2">
+              <span><span className="font-semibold">ID:</span> {incident._id}</span>
+              <span><span className="font-semibold">Created:</span> {incident.createdAt ? new Date(incident.createdAt).toLocaleString() : 'N/A'}</span>
+              <span><span className="font-semibold">Updated:</span> {incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : 'N/A'}</span>
+            </div>
           </div>
         </div>
-      </Card>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
+            {commander?.name?.[0]?.toUpperCase() || commander?.email?.[0]?.toUpperCase() || '?'}</div>
+          <span className="text-sm font-medium text-gray-900">{commander?.name || commander?.email || 'Unassigned'}</span>
+          <span className="text-xs text-gray-400 ml-2">Incident Commander</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 mb-2">
+          <div><span className="font-semibold">Type:</span> <span>{incident.incidentType || '—'}</span></div>
+          <div><span className="font-semibold">Service:</span> <span>{incident.impactedService || '—'}</span></div>
+          <div><span className="font-semibold">Urgency:</span> <span>{incident.urgency || '—'}</span></div>
+          <div><span className="font-semibold">Team:</span> <span>{team?.name || '—'}</span></div>
+        </div>
+        <div className="flex gap-2 mt-2">
+          <button className="btn-primary px-4 py-2 rounded text-sm font-semibold" onClick={() => onView(incident)}>View</button>
+          <button className="px-4 py-2 rounded text-sm font-semibold bg-red-100 text-red-700" onClick={() => onDelete(incident)}>Delete</button>
+        </div>
+      </div>
     );
   }
   return (
@@ -542,6 +527,74 @@ function Dashboard() {
     );
   }
 
+  // Replace the assignee filter <select> with react-select:
+  const assigneeOptions = [
+    { value: "", label: "All Assignees" },
+    ...users
+      .filter((user, idx, arr) => arr.findIndex(u => (u._id || u.email) === (user._id || user.email)) === idx)
+      .map(user => ({
+        value: user._id,
+        label: user.name || user.email,
+        isAdmin: user.role === "admin",
+        avatar: user.avatarUrl,
+        email: user.email
+      }))
+  ];
+  const customOption = (props) => {
+    const { data, innerProps, isFocused } = props;
+    return (
+      <div {...innerProps} className={`flex items-center px-3 py-2 cursor-pointer ${isFocused ? 'bg-blue-50' : ''}`}>
+        <div className="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm mr-2">
+          {data.avatar ? <img src={data.avatar} alt={data.label} className="w-full h-full rounded-full object-cover" /> : (data.label?.[0]?.toUpperCase() || '?')}
+        </div>
+        <span className="flex-1 truncate">{data.label}</span>
+        {data.isAdmin && <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">Admin</span>}
+      </div>
+    );
+  };
+
+  // Update react-select styles for highlighted, pill-shaped dropdowns
+  const customSelectStyles = {
+    control: (base, state) => ({
+      ...base,
+      border: 0,
+      borderRadius: '9999px',
+      background: state.isFocused ? '#f1f5f9' : '#fff',
+      minHeight: 40,
+      boxShadow: state.isFocused ? '0 0 0 2px #60a5fa' : '0 1px 2px rgba(0,0,0,0.04)',
+      fontWeight: 600,
+      paddingLeft: 8,
+      paddingRight: 8,
+      transition: 'box-shadow 0.2s, background 0.2s',
+    }),
+    menu: (base) => ({
+      ...base,
+      borderRadius: 16,
+      zIndex: 50,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isFocused ? '#e0e7ff' : '#fff',
+      color: '#222',
+      fontSize: 15,
+      fontWeight: state.isSelected ? 700 : 500,
+      borderRadius: 8,
+      margin: 2,
+    }),
+    singleValue: (base) => ({
+      ...base,
+      fontWeight: 600,
+      color: '#222',
+    }),
+    dropdownIndicator: (base, state) => ({
+      ...base,
+      color: state.isFocused ? '#60a5fa' : '#888',
+      transition: 'color 0.2s',
+    }),
+    indicatorSeparator: () => ({ display: 'none' }),
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Sticky Header */}
@@ -551,7 +604,7 @@ function Dashboard() {
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
               <FaExclamationTriangle className="text-blue-600 text-xl" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Incident Manager</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Incident Dashboard</h1>
             <span className="flex items-center gap-1 text-sm text-yellow-600 bg-yellow-50 rounded-full px-3 py-1 ml-2 font-medium shadow-sm">
               <FaBell className="text-yellow-500" />
               {overdueCount} Overdue
@@ -615,7 +668,7 @@ function Dashboard() {
           </div>
         </div>
         {/* Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 rounded-full shadow-md border border-gray-200 dark:border-gray-700 px-8 py-5 mb-10 flex flex-wrap gap-4 items-center">
+        <div className="bg-gray-50 rounded-full shadow flex flex-wrap gap-4 items-center px-6 py-3 mb-10">
           <div className="relative flex-1 min-w-[200px]">
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
             <input
@@ -623,13 +676,13 @@ function Dashboard() {
               placeholder="Search incidents..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 border-0 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm h-10 transition-all duration-200 shadow-none"
+              className="w-full pl-10 pr-8 py-2 rounded-full bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 font-semibold shadow-none border-0"
               ref={searchInputRef}
             />
             {searchTerm && (
               <button
                 type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
                 onClick={() => {
                   setSearchTerm("");
                   searchInputRef.current && searchInputRef.current.focus();
@@ -643,36 +696,34 @@ function Dashboard() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border-0 px-4 py-2 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 min-w-[120px] shadow-none"
+            className="bg-white rounded-full shadow-sm px-4 py-2 font-semibold focus:ring-2 focus:ring-blue-400 border-0 text-gray-900 text-sm h-10 min-w-[120px]"
           >
             <option value="">All Statuses</option>
             <option value="open">Open</option>
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
-          <select
-            value={assignedUserFilter}
-            onChange={(e) => setAssignedUserFilter(e.target.value)}
-            className="border-0 px-4 py-2 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 min-w-[120px] shadow-none"
-          >
-            <option value="">All Assignees</option>
-            {users.map((user) => (
-              <option key={user._id} value={user._id}>
-                {user.name || user.email} {user.role === "admin" ? "👑" : ""}
-              </option>
-            ))}
-          </select>
+          <Select
+            className="min-w-[180px] w-full max-w-xs text-sm"
+            options={assigneeOptions}
+            value={assigneeOptions.find(opt => opt.value === assignedUserFilter) || assigneeOptions[0]}
+            onChange={opt => setAssignedUserFilter(opt.value)}
+            isSearchable
+            components={{ Option: customOption }}
+            styles={customSelectStyles}
+            placeholder="All Assignees"
+          />
+          <span className="h-8 w-px bg-gray-200 mx-2 hidden md:inline-block" />
           <select
             value={teamFilter}
             onChange={(e) => setTeamFilter(e.target.value)}
-            className="border-0 px-4 py-2 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 min-w-[120px] shadow-none"
+            className="bg-white rounded-full shadow-sm px-4 py-2 font-semibold focus:ring-2 focus:ring-blue-400 border-0 text-gray-900 text-sm h-10 min-w-[120px]"
           >
             <option value="">All Teams</option>
             {teams.map((team) => (
               <option key={team._id} value={team._id}>{team.name}</option>
             ))}
           </select>
-          {/* Reset Filters Button */}
           <button
             onClick={() => {
               setSearchTerm("");
@@ -680,7 +731,7 @@ function Dashboard() {
               setAssignedUserFilter("");
               setTeamFilter("");
             }}
-            className="ml-auto px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors shadow-none"
+            className="ml-auto px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-semibold hover:bg-gray-300 transition-colors shadow-none"
           >
             Reset Filters
           </button>

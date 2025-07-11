@@ -107,40 +107,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
             {!collapsed && 'People'}
           </div>
           <ul className={`space-y-1 ${collapsed ? '' : 'ml-4'}`}> 
-            {user?.role === 'admin' && (
-              <li>
-                <Link
-                  to="/users"
-                  className={`group flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0' : 'px-3'} py-2 rounded-lg transition-all duration-200 font-medium text-base relative overflow-hidden
-                    ${location.pathname.startsWith("/users")
-                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow font-bold border-l-4 border-blue-500"
-                      : "hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-[1.03] text-gray-700 dark:text-gray-200"}
-                  `}
-                  title="Users"
-                >
-                  <span className={`text-lg sidebar-icon${location.pathname.startsWith('/users') ? ' active' : ''}`}> <i className="la la-user-friends"></i> </span>
-                  {!collapsed && <span className="transition-opacity duration-200">Users</span>}
-                  {collapsed && <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">Users</span>}
-                </Link>
-              </li>
-            )}
-            {user?.role === 'admin' && (
-              <li>
-                <Link
-                  to="/teams"
-                  className={`group flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0' : 'px-3'} py-2 rounded-lg transition-all duration-200 font-medium text-base relative overflow-hidden
-                    ${location.pathname.startsWith("/teams")
-                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow font-bold border-l-4 border-blue-500"
-                      : "hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-[1.03] text-gray-700 dark:text-gray-200"}
-                  `}
-                  title="Teams"
-                >
-                  <span className={`text-lg sidebar-icon${location.pathname.startsWith('/teams') ? ' active' : ''}`}> <i className="la la-users"></i> </span>
-                  {!collapsed && <span className="transition-opacity duration-200">Teams</span>}
-                  {collapsed && <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">Teams</span>}
-                </Link>
-              </li>
-            )}
+            {/* Remove Users and Teams links, keep only Profile */}
             <li>
               <Link
                 to="/profile"

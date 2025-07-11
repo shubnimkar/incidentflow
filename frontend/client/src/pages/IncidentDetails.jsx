@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import PriorityBadge from "./PriorityBadge";
 import Select from "react-select";
+import { io } from "socket.io-client";
 
 const statusOptions = [
   { value: "open", label: "Open" },
@@ -230,6 +231,7 @@ const IncidentDetails = () => {
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   const [reopenFields, setReopenFields] = useState(null);
+  const socketRef = useRef(null);
 
   const fetchActivity = async () => {
     setActivityLoading(true);
@@ -734,8 +736,42 @@ const IncidentDetails = () => {
     }
   };
 
+  // Real-time updates for incident and activity feed
+  useEffect(() => {
+    socketRef.current = io("http://localhost:5001");
+    socketRef.current.on("incidentUpdated", (updatedIncident) => {
+      if (updatedIncident._id === id) {
+        // Refetch incident and activity feed
+        incidentApi.get(`/incidents/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(res => setIncident(res.data));
+        fetchActivity();
+      }
+    });
+    socketRef.current.on("auditLogCreated", (log) => {
+      if (log.incident && (log.incident._id === id || log.incident === id)) {
+        fetchActivity();
+      }
+    });
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, [id, token]);
+
   if (loading) return <div className="h-screen flex items-center justify-center text-lg">Loading...</div>;
   if (!incident) return <div className="h-screen flex items-center justify-center text-lg">Incident not found</div>;
+
+  const handleCommentKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (commentText.trim()) handleCommentSubmit(e);
+    }
+  };
+  const handleFilenameKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && selectedFile && customFilename && !isClosed && !uploading) {
+      e.preventDefault();
+      handleAttachmentUpload();
+    }
+  };
 
   return (
     <div className="min-h-screen w-full bg-[var(--if-page-bg)] text-[var(--if-text-main)] px-2 sm:px-6 md:px-12 py-4">
@@ -955,6 +991,7 @@ const IncidentDetails = () => {
                       type="text"
                       value={customFilename}
                       onChange={e => setCustomFilename(e.target.value)}
+                      onKeyDown={handleFilenameKeyDown}
                       className="border rounded px-2 py-1"
                       disabled={isClosed}
                     />
@@ -1089,6 +1126,7 @@ const IncidentDetails = () => {
                       className="flex-1 border rounded-lg p-2 min-h-[40px] text-sm"
                       value={commentText}
                       onChange={handleCommentInput}
+                      onKeyDown={handleCommentKeyDown}
                       placeholder="Add a comment..."
                       disabled={isClosed}
                     />
