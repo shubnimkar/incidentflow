@@ -1,13 +1,11 @@
 import React, { useState } from "react";
 import UsersSection from "../components/UsersSection";
-import TeamsSection from "../components/TeamsSection";
 import OverdueWindowSection from "../components/OverdueWindowSection";
 import AuditLogsSection from "../components/AuditLogsSection";
 import UserAuditLogsSection from "../components/UserAuditLogsSection";
 
 const TABS = [
   { key: "users", label: "Users" },
-  { key: "teams", label: "Teams" },
   { key: "overdue", label: "Overdue Windows" },
   { key: "audit", label: "Audit Logs" },
 ];
@@ -31,7 +29,6 @@ export default function AdminPanel() {
       </div>
       {/* Tab Content */}
       {activeTab === "users" && <UsersSection />}
-      {activeTab === "teams" && <TeamsSection />}
       {activeTab === "overdue" && <OverdueWindowSection />}
       {activeTab === "audit" && <AuditLogsSection />}
     </div>

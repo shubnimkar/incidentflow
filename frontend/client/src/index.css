@@ -95,3 +95,14 @@ body {
 .text-meta {
   color: var(--if-text-meta);
 }
+
+/* Sidebar icon color tweaks */
+.sidebar-icon i {
+  color: #222 !important;
+  opacity: 0.85;
+  transition: color 0.2s, opacity 0.2s;
+}
+.sidebar-icon.active i {
+  color: #2563eb !important; /* Tailwind blue-600 */
+  opacity: 1;
+}
