@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import axios from "axios";
+import { io } from "socket.io-client";
+import { useRef } from "react";
 
 export default function UserAuditLogsSection() {
   const [logs, setLogs] = useState([]);
@@ -9,6 +11,7 @@ export default function UserAuditLogsSection() {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const socketRef = useRef(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -30,6 +33,20 @@ export default function UserAuditLogsSection() {
 
   useEffect(() => {
     fetchLogs();
+  }, [fetchLogs]);
+
+  // Real-time updates for user audit logs
+  useEffect(() => {
+    socketRef.current = io("http://localhost:5001");
+    socketRef.current.on("userAuditLogCreated", () => {
+      fetchLogs();
+    });
+    socketRef.current.on("userUpdated", () => {
+      fetchLogs();
+    });
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
   }, [fetchLogs]);
 
   return (

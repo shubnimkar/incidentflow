@@ -68,7 +68,8 @@ const getAllIncidents = async (req, res) => {
     }
     const incidents = await Incident.find(filter)
       .populate("createdBy", "email")
-      .populate("assignedTo", "email")
+      .populate("assignedTo", "email name")
+      .populate("team", "name")
       .populate("comments.user", "email");
 
     const enriched = incidents.map((incident) => {
@@ -497,7 +498,11 @@ const getOverdueWindow = async (req, res) => {
     // Ensure all priorities are present
     const defaults = { P1: 24, P2: 48, P3: 72, P4: 120, P5: 168 };
     const overdueWindow = { ...defaults, ...settings.overdueWindowHours };
-    res.json({ overdueWindowHours: overdueWindow });
+    res.json({
+      overdueWindowHours: overdueWindow,
+      lastUpdated: settings.updatedAt,
+      updatedBy: settings.updatedBy || null
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -529,8 +534,13 @@ const updateOverdueWindow = async (req, res) => {
       settings = await Settings.create({});
     }
     settings.overdueWindowHours = overdueWindowHours;
+    settings.updatedBy = req.user.email || null;
     await settings.save();
-    res.json({ overdueWindowHours: settings.overdueWindowHours });
+    res.json({
+      overdueWindowHours: settings.overdueWindowHours,
+      lastUpdated: settings.updatedAt,
+      updatedBy: settings.updatedBy || null
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -609,4 +619,18 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident, getOverdueWindow, updateOverdueWindow, archiveIncident, getArchivedIncidents, getAuditLogs };
+// Metric: Audit log events in last 24h and 7d
+const getAuditLogMetrics = async (req, res) => {
+  try {
+    const now = new Date();
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const since7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const count24h = await AuditLog.countDocuments({ timestamp: { $gte: since24h } });
+    const count7d = await AuditLog.countDocuments({ timestamp: { $gte: since7d } });
+    res.json({ last24h: count24h, last7d: count7d });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident, getOverdueWindow, updateOverdueWindow, archiveIncident, getArchivedIncidents, getAuditLogs, getAuditLogMetrics };

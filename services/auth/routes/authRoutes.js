@@ -18,6 +18,32 @@ router.get("/test", (req, res) => {
   res.json({ message: "Auth routes are working!" });
 });
 
+// --- SESSION TRACKING (simple in-memory for demo) ---
+const activeSessions = new Set();
+
+// Add to activeSessions on login
+router.post("/login", async (req, res, next) => {
+  const { email, password } = req.body;
+  const result = await require("../controllers/authController").login(req, res);
+  // If login is successful and a token is returned, add to activeSessions
+  if (res.statusCode === 200 && res.locals && res.locals.userId) {
+    activeSessions.add(res.locals.userId);
+  }
+});
+
+// Remove from activeSessions on logout (if you have a logout route)
+// router.post("/logout", (req, res) => {
+//   if (req.user && req.user.id) {
+//     activeSessions.delete(req.user.id);
+//   }
+//   res.json({ message: "Logged out" });
+// });
+
+// GET /sessions - return count of active sessions
+router.get("/sessions", (req, res) => {
+  res.json({ count: activeSessions.size });
+});
+
 // REGISTER & LOGIN
 router.post("/register", register);
 router.post("/login", login);

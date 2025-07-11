@@ -7,7 +7,8 @@ const settingsSchema = new mongoose.Schema({
     P3: { type: Number, default: 72, min: 1, max: 168 },
     P4: { type: Number, default: 120, min: 1, max: 168 },
     P5: { type: Number, default: 168, min: 1, max: 168 },
-  }
+  },
+  updatedBy: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Settings', settingsSchema); 
