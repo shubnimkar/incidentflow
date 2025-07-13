@@ -18,14 +18,15 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <i className="la la-tachometer-alt"></i>,
     },
     {
-      label: "On-Call Status",
-      path: "/oncall-status",
-      icon: <i className="la la-clock"></i>,
-    },
-    {
       label: "Create Incident",
       path: "/create",
       icon: <i className="la la-plus-circle"></i>,
+    },
+    {
+      label: "Closed Cases",
+      path: "/closed-cases",
+      icon: <i className="la la-clock"></i>,
+      adminOnly: true,
     },
     {
       label: "Admin Panel",
@@ -34,16 +35,20 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       adminOnly: true,
     },
     {
+      label: "On-Call Status",
+      path: "/oncall-status",
+      icon: <i className="la la-clock"></i>,
+    },
+    {
       label: "On-Call Rotations",
       path: "/oncall-rotations",
       icon: <i className="la la-calendar-alt"></i>,
       adminOnly: true,
     },
     {
-      label: "Closed Cases",
-      path: "/closed-cases",
-      icon: <i className="la la-clock"></i>,
-      adminOnly: true,
+      label: "Profile",
+      path: "/profile",
+      icon: <i className="la la-user-friends"></i>,
     },
   ];
 
@@ -100,30 +105,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               </Link>
             )
           )}
-          {/* Divider before People section */}
-          <div className="my-6 border-t border-gray-200 dark:border-gray-800" />
-          <div className={`uppercase text-xs tracking-wider font-bold ${collapsed ? 'px-0 justify-center' : 'px-4'} mb-2 flex items-center gap-2 text-gray-400 dark:text-gray-500`}> 
-            <i className="la la-users inline-block"></i>
-            {!collapsed && 'People'}
-          </div>
-          <ul className={`space-y-1 ${collapsed ? '' : 'ml-4'}`}> 
-            {/* Remove Users and Teams links, keep only Profile */}
-            <li>
-              <Link
-                to="/profile"
-                className={`group flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0' : 'px-3'} py-2 rounded-lg transition-all duration-200 font-medium text-base relative overflow-hidden
-                  ${location.pathname.startsWith("/profile")
-                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow font-bold border-l-4 border-blue-500"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-[1.03] text-gray-700 dark:text-gray-200"}
-                `}
-                title="Profile"
-              >
-                <span className={`text-lg sidebar-icon${location.pathname.startsWith('/profile') ? ' active' : ''}`}> <i className="la la-user-friends"></i> </span>
-                {!collapsed && <span className="transition-opacity duration-200">Profile</span>}
-                {collapsed && <span className="absolute left-full ml-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg">Profile</span>}
-              </Link>
-            </li>
-          </ul>
         </nav>
         {/* Bottom controls */}
         <div className={`p-4 border-t border-gray-200 dark:border-gray-800 space-y-4 mt-auto ${collapsed ? 'items-center' : ''} bg-white dark:bg-gray-900`}> 

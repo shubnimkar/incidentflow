@@ -19,6 +19,8 @@ import OnCallStatus from "./pages/OnCallStatus";
 import OnCallRotations from "./pages/OnCallRotations";
 import UserProfile from "./pages/UserProfile";
 import ClosedCases from "./pages/ClosedCases";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 
 function App() {
@@ -51,6 +53,8 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/auth-callback" element={<AuthCallback />} />
           
 

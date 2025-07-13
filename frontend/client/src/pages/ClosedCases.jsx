@@ -5,6 +5,7 @@ import PriorityBadge from "./PriorityBadge";
 import { formatDistanceToNow } from "date-fns";
 import UserAvatar from "../pages/UserAvatar";
 import { Tooltip } from "react-tooltip";
+import { FaCheckCircle } from 'react-icons/fa';
 
 const ClosedCases = () => {
   const [incidents, setIncidents] = useState([]);
@@ -33,7 +34,18 @@ const ClosedCases = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <h1 className="text-2xl font-extrabold mb-6 text-gray-900 dark:text-white tracking-tight">Incident Dashboard</h1>
+      {/* Header with icon and breadcrumbs */}
+      <div className="flex items-center gap-4 mb-8 max-w-2xl">
+        <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-green-50">
+          <FaCheckCircle className="text-green-600 text-2xl" />
+        </span>
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Closed Cases</h1>
+          <nav className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Home / <span className="text-gray-700 dark:text-gray-200 font-semibold">Closed Cases</span>
+          </nav>
+        </div>
+      </div>
       <input
         type="text"
         placeholder="Search closed cases..."

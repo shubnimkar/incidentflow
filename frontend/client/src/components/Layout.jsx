@@ -22,7 +22,7 @@ const Layout = () => {
       <div className="flex flex-1">
         <Sidebar collapsed={collapsed} toggleSidebar={() => setCollapsed(!collapsed)} />
         <main
-          className="flex-1 transition-all duration-300 bg-gray-50 dark:bg-gray-900 p-6"
+          className="flex-1 transition-all duration-300 bg-gray-50 dark:bg-gray-900 pt-0 px-6"
         >
           <Outlet />
         </main>
