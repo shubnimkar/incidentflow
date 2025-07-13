@@ -130,26 +130,122 @@ const VerifyEmail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
-              <FaEnvelope className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+    <div className="min-h-screen flex flex-col bg-gradient-to-r from-blue-100 via-white to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="flex flex-1 flex-col md:flex-row justify-between">
+        {/* Left Side */}
+        <div className="hidden md:flex flex-col justify-center items-center w-1/2 px-12 relative overflow-hidden">
+          {/* SVG Mesh/Wave Background */}
+          <svg className="absolute inset-0 w-full h-full z-0" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="mesh1" cx="50%" cy="50%" r="80%" fx="50%" fy="50%" gradientTransform="rotate(45)">
+                <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <ellipse cx="400" cy="400" rx="400" ry="320" fill="url(#mesh1)" />
+            <ellipse cx="600" cy="200" rx="200" ry="120" fill="#38bdf8" fillOpacity="0.08" />
+            <ellipse cx="200" cy="600" rx="180" ry="100" fill="#6366f1" fillOpacity="0.07" />
+          </svg>
+          {/* Glowing Logo */}
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="w-[400px] h-[400px] flex items-center justify-center mb-0 -mt-32">
+              <img src={process.env.PUBLIC_URL + '/logo2.png'} alt="IncidentFlow Logo" className="max-w-full object-contain drop-shadow-xl animate-glow" style={{filter: 'drop-shadow(0 0 40px #60a5fa88)'}} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Email Verification
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Verify your email to complete your registration
+            {/* Animated Tagline */}
+            <AnimatedTagline />
+            <p className="text-base text-blue-900 dark:text-blue-200 mt-2 mb-8 text-center max-w-md mx-auto font-medium opacity-80">
+              Verify your email to unlock the full power of IncidentFlow.
             </p>
           </div>
-
-          {renderContent()}
+          {/* Floating shapes */}
+          <div className="absolute top-20 left-10 w-6 h-6 bg-blue-400 rounded-full opacity-20 animate-float-slow z-0" />
+          <div className="absolute bottom-24 right-24 w-8 h-8 bg-indigo-400 rounded-full opacity-10 animate-float-fast z-0" />
+        </div>
+        {/* Right Side (Verification Card) */}
+        <div className="flex flex-1 items-stretch justify-center px-2">
+          <div className="w-full max-w-md min-h-[600px] flex flex-col justify-center mt-12 py-8 px-6 rounded-2xl bg-white/70 dark:bg-gray-900/80 backdrop-blur shadow-xl border border-blue-100 dark:border-gray-700">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
+                <FaEnvelope className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Email Verification
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Verify your email to complete your registration
+              </p>
+            </div>
+            {renderContent()}
+          </div>
         </div>
       </div>
+      {/* Global Footer */}
+      <footer className="w-full flex justify-center items-center text-xs text-blue-900/40 dark:text-gray-500 mt-4 mb-2 select-none">
+        <span className="opacity-70">© {new Date().getFullYear()} IncidentFlow. All rights reserved.</span>
+      </footer>
+      {/* Animations */}
+      <style>{`
+        @keyframes glow {
+          0%, 100% { filter: drop-shadow(0 0 40px #60a5fa88); }
+          50% { filter: drop-shadow(0 0 80px #60a5fa); }
+        }
+        .animate-glow { animation: glow 3s ease-in-out infinite; }
+        @keyframes float-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-20px); }
+        }
+        .animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
+        @keyframes float-fast {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(20px); }
+        }
+        .animate-float-fast { animation: float-fast 3s ease-in-out infinite; }
+        @keyframes gradient-slow {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-gradient-slow {
+          background-size: 200% 200%;
+          animation: gradient-slow 3s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };
 
 export default VerifyEmail; 
+
+// AnimatedTagline component for consistency
+function AnimatedTagline() {
+  const taglineFull = 'Incident management, reimagined for modern teams';
+  const [typed, setTyped] = React.useState('');
+  const [done, setDone] = React.useState(false);
+  React.useEffect(() => {
+    let i = 0;
+    let interval = setInterval(() => {
+      setTyped(taglineFull.slice(0, i + 1));
+      i++;
+      if (i === taglineFull.length) {
+        clearInterval(interval);
+        setDone(true);
+      }
+    }, 35);
+    return () => clearInterval(interval);
+  }, []);
+  const before = 'Incident management, ';
+  const highlight = 'reimagined';
+  const after = ' for modern teams';
+  if (!typed.includes(highlight)) {
+    return <p className={`text-2xl -mt-12 mb-8 text-center max-w-xs transition-all duration-1000 ${done ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}><span className="text-[#f97316] dark:text-[#fbbf24]">{typed}</span></p>;
+  }
+  const beforeText = typed.slice(0, before.length);
+  const highlightText = typed.slice(before.length, before.length + highlight.length);
+  const afterText = typed.slice(before.length + highlight.length);
+  return (
+    <p className={`text-2xl -mt-12 mb-8 text-center max-w-xs transition-all duration-1000 ${done ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <span className="text-[#f97316] dark:text-[#fbbf24]">{beforeText}</span>
+      <span className="font-bold bg-gradient-to-r from-[#f97316] to-[#2563eb] text-transparent bg-clip-text animate-gradient-slow">{highlightText}</span>
+      <span className="text-[#f97316] dark:text-[#fbbf24]">{afterText}</span>
+    </p>
+  );
+} 

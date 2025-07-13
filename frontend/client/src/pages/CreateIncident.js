@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 import { userApi } from "../services/api";
+import { FaPlusCircle } from 'react-icons/fa';
 
 export default function CreateIncident() {
   const navigate = useNavigate();
@@ -118,8 +119,20 @@ export default function CreateIncident() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 animate-fade-in">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 py-6">
+      {/* Header with icon and breadcrumbs */}
+      <div className="flex items-center gap-4 mb-8 max-w-2xl">
+        <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-blue-50">
+          <FaPlusCircle className="text-blue-600 text-2xl" />
+        </span>
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Create Incident</h1>
+          <nav className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Home / <span className="text-gray-700 dark:text-gray-200 font-semibold">Create Incident</span>
+          </nav>
+        </div>
+      </div>
+      <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 border border-gray-200 dark:border-gray-700 animate-fade-in mx-auto">
         <h2 className="text-2xl font-bold mb-2 text-center text-gray-900 dark:text-white">Create New Incident</h2>
         <p className="text-sm text-gray-500 dark:text-gray-300 mb-6 text-center">Fill out the details below to create a new incident.</p>
         {error && <div className="mb-4 p-2 rounded bg-red-100 text-red-700 text-sm text-center">{error}</div>}
