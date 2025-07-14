@@ -7,18 +7,25 @@ const sendEmail = require('../../auth/utils/sendEmail');
 const emailTemplates = require('../../auth/utils/emailTemplates');
 const fs = require('fs');
 const Settings = require('../models/Settings');
+const AWS = require('aws-sdk');
+const multerS3 = require('multer-s3');
 
-// Multer setup for attachments
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../../uploads/incident-attachments'));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
-  }
+// Multer setup for attachments (S3)
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.S3_BUCKET,
+    key: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, `attachments/${uniqueSuffix}-${file.originalname}`);
+    }
+  })
+});
 
 const createIncident = async (req, res) => {
   const { title, description, urgency, status, assignedTo, tags, team, category, incidentType, impactedService, priority, responders, meetingUrl } = req.body;
@@ -74,7 +81,14 @@ const getAllIncidents = async (req, res) => {
 
     const enriched = incidents.map((incident) => {
       const email = incident.createdBy?.email || incident.createdByEmail || "N/A";
-      return { ...incident.toObject(), createdByEmail: email };
+      const obj = { ...incident.toObject(), createdByEmail: email };
+      if (obj.attachments && Array.isArray(obj.attachments)) {
+        obj.attachments = obj.attachments.map(att => ({
+          ...att,
+          url: getPresignedUrl(att.url)
+        }));
+      }
+      return obj;
     });
 
     res.json(enriched);
@@ -312,18 +326,20 @@ const getIncidentById = async (req, res) => {
   try {
     const incident = await Incident.findById(req.params.id)
       .populate("createdBy", "email")
-      .populate("assignedTo", "email")
-      .populate("responders", "name email")
+      .populate("assignedTo", "email name")
       .populate("team", "name")
-      .populate("comments.user", "email role")
-      .populate("attachments.uploadedBy", "email");
-
+      .populate("comments.user", "email");
     if (!incident) return res.status(404).json({ message: "Incident not found" });
-
-    res.json(incident);
+    const obj = incident.toObject();
+    if (obj.attachments && Array.isArray(obj.attachments)) {
+      obj.attachments = obj.attachments.map(att => ({
+        ...att,
+        url: getPresignedUrl(att.url)
+      }));
+    }
+    res.json(obj);
   } catch (err) {
-    console.error("Error fetching incident:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Failed to fetch incident" });
   }
 };
 
@@ -331,9 +347,12 @@ const getIncidentById = async (req, res) => {
 const uploadAttachment = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const fileUrl = req.file.location; // S3 URL
+    if (!fileUrl) {
+      return res.status(500).json({ message: "File upload failed, no S3 URL returned from S3." });
+    }
     const incident = await Incident.findById(req.params.id);
     if (!incident) return res.status(404).json({ message: "Incident not found" });
-    const fileUrl = `/uploads/incident-attachments/${req.file.filename}`;
     const customFilename = req.body.filename;
     incident.attachments.push({
       filename: customFilename || req.file.originalname,
@@ -633,4 +652,33 @@ const getAuditLogMetrics = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getAllIncidents, updateIncidentStatus, assignIncident, updateIncident, addComment, getIncidentById, uploadAttachment, editComment, deleteComment, reactToComment, deleteIncident, getOverdueWindow, updateOverdueWindow, archiveIncident, getArchivedIncidents, getAuditLogs, getAuditLogMetrics };
+const getPresignedUrl = (key) => {
+  if (!key) return null;
+  return s3.getSignedUrl('getObject', {
+    Bucket: process.env.S3_BUCKET,
+    Key: key.replace(/^https?:\/\/[^/]+\//, ''),
+    Expires: 60 * 5 // 5 minutes
+  });
+};
+
+module.exports = {
+  createIncident,
+  getAllIncidents,
+  getIncidentById,
+  updateIncident,
+  updateIncidentStatus,
+  assignIncident,
+  addComment,
+  uploadAttachment,
+  editComment,
+  deleteComment,
+  reactToComment,
+  deleteIncident,
+  getOverdueWindow,
+  updateOverdueWindow,
+  archiveIncident,
+  getArchivedIncidents,
+  getAuditLogs,
+  getAuditLogMetrics,
+  upload, // Export the S3-based upload instance
+};

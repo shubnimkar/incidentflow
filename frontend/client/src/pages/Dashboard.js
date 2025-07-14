@@ -596,422 +596,428 @@ function Dashboard() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 min-h-screen">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 lg:px-12 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
-              <FaExclamationTriangle className="text-blue-600 text-xl" />
+    <>
+      <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 min-h-screen">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+          <div className="w-full px-2 sm:px-4 lg:px-6 py-4 flex flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
+                <FaExclamationTriangle className="text-blue-600 text-xl" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Incident Dashboard</h1>
+              <span className="flex items-center gap-1 text-sm text-yellow-600 bg-yellow-50 rounded-full px-3 py-1 ml-2 font-medium shadow-sm">
+                <FaBell className="text-yellow-500" />
+                {overdueCount} Overdue
+              </span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Incident Dashboard</h1>
-            <span className="flex items-center gap-1 text-sm text-yellow-600 bg-yellow-50 rounded-full px-3 py-1 ml-2 font-medium shadow-sm">
-              <FaBell className="text-yellow-500" />
-              {overdueCount} Overdue
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleViewModeChange(viewMode === 'kanban' ? 'list' : 'kanban')}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors"
-            >
-              {viewMode === 'kanban' ? 'List View' : 'Kanban View'}
-            </button>
-            <button
-              onClick={() => navigate('/create')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-white bg-blue-600 hover:bg-blue-700 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              <FaPlus className="mr-2" />
-              New Incident
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 lg:px-12 py-10">
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          <div className="bg-blue-50 dark:bg-blue-900/30 rounded-2xl shadow-md border-l-4 border-blue-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-              <FaExclamationTriangle className="text-blue-600 dark:text-blue-400 text-xl" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Incidents</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalIncidents}</p>
-            </div>
-          </div>
-          <div className="bg-yellow-50 dark:bg-yellow-900/30 rounded-2xl shadow-md border-l-4 border-yellow-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
-            <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
-              <FaClock className="text-yellow-600 dark:text-yellow-400 text-xl" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{overdueCount}</p>
-            </div>
-          </div>
-          <div className="bg-green-50 dark:bg-green-900/30 rounded-2xl shadow-md border-l-4 border-green-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
-            <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-              <FaCheckCircle className="text-green-600 dark:text-green-400 text-xl" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Resolved</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{resolvedCount}</p>
-            </div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800/60 rounded-2xl shadow-md border-l-4 border-gray-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
-            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-              <FaCheckCircle className="text-gray-500 dark:text-gray-300 text-xl" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Closed Incidents</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{closedCount}</p>
-            </div>
-          </div>
-        </div>
-        {/* Filter Bar */}
-        <div className="bg-gray-50 rounded-full shadow flex flex-wrap gap-4 items-center px-6 py-3 mb-10">
-          <div className="relative flex-1 min-w-[200px]">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
-            <input
-              type="text"
-              placeholder="Search incidents..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 rounded-full bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 font-semibold shadow-none border-0"
-              ref={searchInputRef}
-            />
-            {searchTerm && (
+            <div className="flex gap-2 ml-auto">
               <button
-                type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                onClick={() => {
-                  setSearchTerm("");
-                  searchInputRef.current && searchInputRef.current.focus();
-                }}
-                aria-label="Clear search"
+                onClick={() => handleViewModeChange(viewMode === 'kanban' ? 'list' : 'kanban')}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors"
               >
-                <FaTimes />
+                {viewMode === 'kanban' ? 'List View' : 'Kanban View'}
               </button>
-            )}
+              <button
+                onClick={() => navigate('/create')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full text-white bg-blue-600 hover:bg-blue-700 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                <FaPlus className="mr-2" />
+                New Incident
+              </button>
+            </div>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white rounded-full shadow-sm px-4 py-2 font-semibold focus:ring-2 focus:ring-blue-400 border-0 text-gray-900 text-sm h-10 min-w-[120px]"
-          >
-            <option value="">All Statuses</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="resolved">Resolved</option>
-          </select>
-          <Select
-            className="min-w-[180px] w-full max-w-xs text-sm"
-            options={assigneeOptions}
-            value={assigneeOptions.find(opt => opt.value === assignedUserFilter) || assigneeOptions[0]}
-            onChange={opt => setAssignedUserFilter(opt.value)}
-            isSearchable
-            components={{ Option: customOption }}
-            styles={customSelectStyles}
-            placeholder="All Assignees"
-          />
-          <span className="h-8 w-px bg-gray-200 mx-2 hidden md:inline-block" />
-          <select
-            value={teamFilter}
-            onChange={(e) => setTeamFilter(e.target.value)}
-            className="bg-white rounded-full shadow-sm px-4 py-2 font-semibold focus:ring-2 focus:ring-blue-400 border-0 text-gray-900 text-sm h-10 min-w-[120px]"
-          >
-            <option value="">All Teams</option>
-            {teams.map((team) => (
-              <option key={team._id} value={team._id}>{team.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={() => {
-              setSearchTerm("");
-              setStatusFilter("");
-              setAssignedUserFilter("");
-              setTeamFilter("");
-            }}
-            className="ml-auto px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-semibold hover:bg-gray-300 transition-colors shadow-none"
-          >
-            Reset Filters
-          </button>
         </div>
-
-        {/* Bulk Action Bar */}
-        {selectedIncidents.length > 0 && user?.role === 'admin' && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  {selectedIncidents.length} incident(s) selected
-                </span>
-                
-                <select
-                  value={bulkAssignUser}
-                  onChange={e => setBulkAssignUser(e.target.value)}
-                  className="px-3 py-1 border border-blue-300 dark:border-blue-600 rounded-md bg-white dark:bg-gray-700 text-sm"
-                  disabled={bulkLoading}
-                >
-                  <option value="">Assign to...</option>
-                  {users.map(u => (
-                    <option key={u._id} value={u._id}>{u.name || u.email}</option>
-                  ))}
-                </select>
-                
-                <button
-                  className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  onClick={handleBulkAssign}
-                  disabled={!bulkAssignUser || bulkLoading}
-                >
-                  {bulkLoading ? <FaSpinner className="animate-spin" /> : 'Assign'}
-                </button>
-
-                <select
-                  value={bulkStatus}
-                  onChange={e => setBulkStatus(e.target.value)}
-                  className="px-3 py-1 border border-blue-300 dark:border-blue-600 rounded-md bg-white dark:bg-gray-700 text-sm"
-                  disabled={bulkLoading}
-                >
-                  <option value="">Change status...</option>
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                </select>
-                
-                <button
-                  className="px-3 py-1 bg-yellow-600 text-white rounded-md text-sm font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50"
-                  onClick={handleBulkStatus}
-                  disabled={!bulkStatus || bulkLoading}
-                >
-                  {bulkLoading ? <FaSpinner className="animate-spin" /> : 'Update Status'}
-                </button>
-
-                <button
-                  className="px-3 py-1 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={bulkLoading}
-                >
-                  Delete
-                </button>
+        <div className="max-w-[1600px] w-full mx-auto px-2 sm:px-6 lg:px-8 py-10">
+          {/* Metrics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+            <div className="bg-blue-50 dark:bg-blue-900/30 rounded-2xl shadow-md border-l-4 border-blue-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                <FaExclamationTriangle className="text-blue-600 dark:text-blue-400 text-xl" />
               </div>
-              
-              <button 
-                className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                onClick={() => setSelectedIncidents([])}
-                disabled={bulkLoading}
-              >
-                Clear selection
-              </button>
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Incidents</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalIncidents}</p>
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Confirm Delete Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
-                  <FaTrash className="text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Delete Incidents</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone.</p>
-                </div>
+            <div className="bg-yellow-50 dark:bg-yellow-900/30 rounded-2xl shadow-md border-l-4 border-yellow-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
+              <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
+                <FaClock className="text-yellow-600 dark:text-yellow-400 text-xl" />
               </div>
-              <p className="text-gray-700 dark:text-gray-300 mb-6">
-                Are you sure you want to delete {selectedIncidents.length} selected incident(s)?
-              </p>
-              <div className="flex space-x-3">
-                <button
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  disabled={bulkLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                  onClick={handleBulkDelete}
-                  disabled={bulkLoading}
-                >
-                  {bulkLoading ? <FaSpinner className="animate-spin mx-auto" /> : 'Delete'}
-                </button>
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{overdueCount}</p>
+              </div>
+            </div>
+            <div className="bg-green-50 dark:bg-green-900/30 rounded-2xl shadow-md border-l-4 border-green-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                <FaCheckCircle className="text-green-600 dark:text-green-400 text-xl" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Resolved</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{resolvedCount}</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/60 rounded-2xl shadow-md border-l-4 border-gray-400 p-6 flex items-center gap-4 h-32 hover:scale-[1.03] transition-transform">
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                <FaCheckCircle className="text-gray-500 dark:text-gray-300 text-xl" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Closed Incidents</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{closedCount}</p>
               </div>
             </div>
           </div>
-        )}
-
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 mb-6">
-            <p className="text-red-700 dark:text-red-300">{error}</p>
+          {/* Filter Bar */}
+          <div className="bg-gray-50 rounded-full shadow flex flex-wrap gap-4 items-center px-6 py-3 mb-10">
+            <div className="relative flex-1 min-w-[200px]">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+              <input
+                type="text"
+                placeholder="Search incidents..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-8 py-2 rounded-full bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm h-10 font-semibold shadow-none border-0"
+                ref={searchInputRef}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  onClick={() => {
+                    setSearchTerm("");
+                    searchInputRef.current && searchInputRef.current.focus();
+                  }}
+                  aria-label="Clear search"
+                >
+                  <FaTimes />
+                </button>
+              )}
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-white rounded-full shadow-sm px-4 py-2 font-semibold focus:ring-2 focus:ring-blue-400 border-0 text-gray-900 text-sm h-10 min-w-[120px]"
+            >
+              <option value="">All Statuses</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <Select
+              className="min-w-[180px] w-full max-w-xs text-sm"
+              options={assigneeOptions}
+              value={assigneeOptions.find(opt => opt.value === assignedUserFilter) || assigneeOptions[0]}
+              onChange={opt => setAssignedUserFilter(opt.value)}
+              isSearchable
+              components={{ Option: customOption }}
+              styles={customSelectStyles}
+              placeholder="All Assignees"
+            />
+            <span className="h-8 w-px bg-gray-200 mx-2 hidden md:inline-block" />
+            <select
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+              className="bg-white rounded-full shadow-sm px-4 py-2 font-semibold focus:ring-2 focus:ring-blue-400 border-0 text-gray-900 text-sm h-10 min-w-[120px]"
+            >
+              <option value="">All Teams</option>
+              {teams.map((team) => (
+                <option key={team._id} value={team._id}>{team.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("");
+                setAssignedUserFilter("");
+                setTeamFilter("");
+              }}
+              className="ml-auto px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-semibold hover:bg-gray-300 transition-colors shadow-none"
+            >
+              Reset Filters
+            </button>
           </div>
-        )}
 
-        {/* Kanban Board */}
-        {viewMode === 'kanban' && (
-          <div className="space-y-6">
-            <DragDropContext onDragEnd={user?.role === 'admin' ? onDragEnd : () => {}}>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {Object.entries(groupedIncidents).map(([status, list]) => (
-                  <Droppable droppableId={status} key={status} isDropDisabled={user?.role !== 'admin'}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`bg-[var(--if-card-bg)] border border-[var(--if-border)] rounded-xl shadow p-6 ${
-                          snapshot.isDraggingOver ? "ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/20" : ""
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-2">
-                            {user?.role === 'admin' && (
-                              <input
-                                type="checkbox"
-                                checked={list.every(i => selectedIncidents.includes(i._id)) && list.length > 0}
-                                onChange={handleSelectAll(status)}
-                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                            )}
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                              {statusLabels[status]}
-                            </h3>
-                            <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium px-2 py-1 rounded-full">
-                              {list.length}
-                            </span>
+          {/* Bulk Action Bar */}
+          {selectedIncidents.length > 0 && user?.role === 'admin' && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    {selectedIncidents.length} incident(s) selected
+                  </span>
+                  
+                  <select
+                    value={bulkAssignUser}
+                    onChange={e => setBulkAssignUser(e.target.value)}
+                    className="px-3 py-1 border border-blue-300 dark:border-blue-600 rounded-md bg-white dark:bg-gray-700 text-sm"
+                    disabled={bulkLoading}
+                  >
+                    <option value="">Assign to...</option>
+                    {users.map(u => (
+                      <option key={u._id} value={u._id}>{u.name || u.email}</option>
+                    ))}
+                  </select>
+                  
+                  <button
+                    className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    onClick={handleBulkAssign}
+                    disabled={!bulkAssignUser || bulkLoading}
+                  >
+                    {bulkLoading ? <FaSpinner className="animate-spin" /> : 'Assign'}
+                  </button>
+
+                  <select
+                    value={bulkStatus}
+                    onChange={e => setBulkStatus(e.target.value)}
+                    className="px-3 py-1 border border-blue-300 dark:border-blue-600 rounded-md bg-white dark:bg-gray-700 text-sm"
+                    disabled={bulkLoading}
+                  >
+                    <option value="">Change status...</option>
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                  
+                  <button
+                    className="px-3 py-1 bg-yellow-600 text-white rounded-md text-sm font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                    onClick={handleBulkStatus}
+                    disabled={!bulkStatus || bulkLoading}
+                  >
+                    {bulkLoading ? <FaSpinner className="animate-spin" /> : 'Update Status'}
+                  </button>
+
+                  <button
+                    className="px-3 py-1 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={bulkLoading}
+                  >
+                    Delete
+                  </button>
+                </div>
+                
+                <button 
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  onClick={() => setSelectedIncidents([])}
+                  disabled={bulkLoading}
+                >
+                  Clear selection
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Confirm Delete Modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+                    <FaTrash className="text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Delete Incidents</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone.</p>
+                  </div>
+                </div>
+                <p className="text-gray-700 dark:text-gray-300 mb-6">
+                  Are you sure you want to delete {selectedIncidents.length} selected incident(s)?
+                </p>
+                <div className="flex space-x-3">
+                  <button
+                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={bulkLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                    onClick={handleBulkDelete}
+                    disabled={bulkLoading}
+                  >
+                    {bulkLoading ? <FaSpinner className="animate-spin mx-auto" /> : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 mb-6">
+              <p className="text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+
+          {/* Kanban Board */}
+          {viewMode === 'kanban' && (
+            <div className="space-y-6">
+              <DragDropContext onDragEnd={user?.role === 'admin' ? onDragEnd : () => {}}>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {Object.entries(groupedIncidents).map(([status, list]) => (
+                    <Droppable droppableId={status} key={status} isDropDisabled={user?.role !== 'admin'}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`bg-[var(--if-card-bg)] border border-[var(--if-border)] rounded-xl shadow p-6 ${
+                            snapshot.isDraggingOver ? "ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/20" : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center space-x-2">
+                              {user?.role === 'admin' && (
+                                <input
+                                  type="checkbox"
+                                  checked={list.every(i => selectedIncidents.includes(i._id)) && list.length > 0}
+                                  onChange={handleSelectAll(status)}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              )}
+                              <h3 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
+                                {statusLabels[status]}
+                              </h3>
+                              <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium px-2 py-1 rounded-full">
+                                {list.length}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-3">
+                                                        {list.map((incident, index) => (
+                                <Draggable key={incident._id} draggableId={incident._id.toString()} index={index} isDragDisabled={user?.role !== 'admin'}>
+                                  {(provided, snapshot) => {
+                                    const onCallUser = onCallMap[incident.team];
+                                    const isOnCallAssigned = onCallUser && incident.assignedTo && incident.assignedTo._id === onCallUser._id;
+                                    const isSelected = selectedIncidents.includes(incident._id);
+                                    const sev = incident.severity?.toLowerCase();
+                                    const windowHours = overduePerSeverity[sev] || overdueWindow;
+                                    const isOverdue = new Date(incident.createdAt) < new Date(Date.now() - windowHours * 60 * 60 * 1000) && incident.status !== 'resolved';
+                                    
+                                    return (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                      className={`mb-4 ${snapshot.isDragging ? 'ring-2 ring-blue-400 shadow-lg scale-105' : ''}`}
+                                      >
+                                      <IncidentCard
+                                        incident={incident}
+                                        users={users}
+                                        teams={teams}
+                                        onAssign={handleAssign}
+                                        onEdit={incident => navigate(`/incidents/${incident._id}?edit=1`)}
+                                        onDelete={incident => setDeleteConfirmId(incident._id)}
+                                        onView={incident => navigate(`/incidents/${incident._id}`)}
+                                      />
+                                      </div>
+                                    );
+                                  }}
+                                </Draggable>
+                              ))}
+                            {provided.placeholder}
                           </div>
                         </div>
-                        
-                        <div className="space-y-3">
-                                                      {list.map((incident, index) => (
-                              <Draggable key={incident._id} draggableId={incident._id.toString()} index={index} isDragDisabled={user?.role !== 'admin'}>
-                                {(provided, snapshot) => {
-                                  const onCallUser = onCallMap[incident.team];
-                                  const isOnCallAssigned = onCallUser && incident.assignedTo && incident.assignedTo._id === onCallUser._id;
-                                  const isSelected = selectedIncidents.includes(incident._id);
-                                  const sev = incident.severity?.toLowerCase();
-                                  const windowHours = overduePerSeverity[sev] || overdueWindow;
-                                  const isOverdue = new Date(incident.createdAt) < new Date(Date.now() - windowHours * 60 * 60 * 1000) && incident.status !== 'resolved';
-                                  
-                                  return (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                    className={`mb-4 ${snapshot.isDragging ? 'ring-2 ring-blue-400 shadow-lg scale-105' : ''}`}
-                                    >
-                                    <IncidentCard
-                                      incident={incident}
-                                      users={users}
-                                      teams={teams}
-                                      onAssign={handleAssign}
-                                      onEdit={incident => navigate(`/incidents/${incident._id}?edit=1`)}
-                                      onDelete={incident => setDeleteConfirmId(incident._id)}
-                                      onView={incident => navigate(`/incidents/${incident._id}`)}
-                                    />
-                                    </div>
-                                  );
-                                }}
-                              </Draggable>
-                            ))}
-                          {provided.placeholder}
-                        </div>
-                      </div>
-                    )}
-                  </Droppable>
-                ))}
-              </div>
-            </DragDropContext>
-          </div>
-        )}
+                      )}
+                    </Droppable>
+                  ))}
+                </div>
+              </DragDropContext>
+            </div>
+          )}
 
-        {/* List View */}
-        {viewMode === 'list' && (
-          <div className="flex flex-col gap-4">
-            {filteredIncidents.filter(i => i.status !== 'closed').map(incident => (
-              <IncidentCard
-                key={incident._id}
-                incident={incident}
-                users={users}
-                teams={teams}
-                onAssign={handleAssign}
-                onEdit={incident => navigate(`/incidents/${incident._id}?edit=1`)}
-                onDelete={incident => setDeleteConfirmId(incident._id)}
-                onView={incident => navigate(`/incidents/${incident._id}`)}
-                compact
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Analytics Section */}
-        {totalIncidents > 0 && (
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Incidents by Status</h3>
-              <div className="h-64">
-                <Pie 
-                  data={statusChartData} 
-                  options={{ 
-                    plugins: { 
-                      legend: { position: 'bottom' },
-                      tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: 'white',
-                        bodyColor: 'white',
-                      }
-                    },
-                    responsive: true,
-                    maintainAspectRatio: false
-                  }} 
+          {/* List View */}
+          {viewMode === 'list' && (
+            <div className="flex flex-col gap-4">
+              {filteredIncidents.filter(i => i.status !== 'closed').map(incident => (
+                <IncidentCard
+                  key={incident._id}
+                  incident={incident}
+                  users={users}
+                  teams={teams}
+                  onAssign={handleAssign}
+                  onEdit={incident => navigate(`/incidents/${incident._id}?edit=1`)}
+                  onDelete={incident => setDeleteConfirmId(incident._id)}
+                  onView={incident => navigate(`/incidents/${incident._id}`)}
+                  compact
                 />
-              </div>
+              ))}
             </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Unassigned Incidents</span>
-                  <span className="text-lg font-semibold text-gray-900 dark:text-white">{unassignedCount}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Average Resolution Time</span>
-                  <span className="text-lg font-semibold text-gray-900 dark:text-white">2.3 days</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">SLA Compliance</span>
-                  <span className="text-lg font-semibold text-green-600">94%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Confirmation modal */}
-        {deleteConfirmId && (
-          <ConfirmModal
-            open={!!deleteConfirmId}
-            onClose={() => setDeleteConfirmId(null)}
-            onConfirm={async () => {
-              try {
-                await incidentApi.delete(`/incidents/${deleteConfirmId}`);
-                setDeleteConfirmId(null);
-                // Refresh incidents
-                const res = await incidentApi.get('/incidents');
-                setIncidents(res.data);
-                toast.success('Incident deleted successfully!');
-              } catch (err) {
-                toast.error('Failed to delete incident');
-                setDeleteConfirmId(null);
-              }
-            }}
-            title="Delete Incident?"
-            description="Are you sure you want to permanently delete this incident? This action cannot be undone."
-          />
-        )}
+          {/* Analytics Section */}
+          {totalIncidents > 0 && (
+            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Incidents by Status</h3>
+                <div className="h-64">
+                  <Pie 
+                    data={statusChartData} 
+                    options={{ 
+                      plugins: { 
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          titleColor: 'white',
+                          bodyColor: 'white',
+                        }
+                      },
+                      responsive: true,
+                      maintainAspectRatio: false
+                    }} 
+                  />
+                </div>
+              </div>
+              
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Unassigned Incidents</span>
+                    <span className="text-lg font-semibold text-gray-900 dark:text-white">{unassignedCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Average Resolution Time</span>
+                    <span className="text-lg font-semibold text-gray-900 dark:text-white">2.3 days</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">SLA Compliance</span>
+                    <span className="text-lg font-semibold text-green-600">94%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Confirmation modal */}
+          {deleteConfirmId && (
+            <ConfirmModal
+              open={!!deleteConfirmId}
+              onClose={() => setDeleteConfirmId(null)}
+              onConfirm={async () => {
+                try {
+                  await incidentApi.delete(`/incidents/${deleteConfirmId}`);
+                  setDeleteConfirmId(null);
+                  // Refresh incidents
+                  const res = await incidentApi.get('/incidents');
+                  setIncidents(res.data);
+                  toast.success('Incident deleted successfully!');
+                } catch (err) {
+                  toast.error('Failed to delete incident');
+                  setDeleteConfirmId(null);
+                }
+              }}
+              title="Delete Incident?"
+              description="Are you sure you want to permanently delete this incident? This action cannot be undone."
+            />
+          )}
+        </div>
       </div>
-    </div>
+      {/* Global Footer */}
+      <footer className="w-full flex justify-center items-center text-xs text-blue-900/40 dark:text-gray-500 mt-4 mb-2 select-none">
+        <span className="opacity-70">© {new Date().getFullYear()} IncidentFlow. All rights reserved.</span>
+      </footer>
+    </>
   );
 }
 

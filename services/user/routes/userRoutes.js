@@ -19,6 +19,8 @@ const User = require("../models/User");
 const UserAuditLog = require("../models/UserAuditLog");
 const { authenticateToken, authorizeAdmin } = require("../middleware/auth");
 const adminController = require("../controllers/adminController");
+const AWS = require('aws-sdk');
+const multerS3 = require('multer-s3');
 
 const router = express.Router();
 
@@ -27,16 +29,23 @@ const avatarDir = path.join(__dirname, '../../uploads/avatars');
 if (!fs.existsSync(avatarDir)) {
   fs.mkdirSync(avatarDir, { recursive: true });
 }
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, avatarDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, req.user._id + '-' + Date.now() + ext);
-  }
+// Set up S3 for avatars
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.S3_BUCKET,
+    contentType: multerS3.AUTO_CONTENT_TYPE, // Ensure correct Content-Type for images
+    key: function (req, file, cb) {
+      const ext = path.extname(file.originalname);
+      cb(null, `avatars/${req.user._id}-${Date.now()}${ext}`);
+    }
+  })
+});
 
 // Replace the mock sendSMS with Twilio integration
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
@@ -51,6 +60,19 @@ const sendSMS = async (phone, message) => {
   });
 };
 
+// Helper to generate a pre-signed URL for S3 objects
+const getPresignedUrl = (key) => {
+  if (!key) return null;
+  const s3Key = key.replace(/^https?:\/\/[^/]+\//, '');
+  const presignedUrl = s3.getSignedUrl('getObject', {
+    Bucket: process.env.S3_BUCKET,
+    Key: s3Key,
+    Expires: 60 * 5 // 5 minutes
+  });
+  console.log('[DEBUG] Generating pre-signed URL:', { key, s3Key, presignedUrl });
+  return presignedUrl;
+};
+
 // ✅ Public routes
 router.post("/register", register);
 router.post("/login", login);
@@ -59,7 +81,15 @@ router.post("/login", login);
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const users = await User.find().select("-password");
-    res.json(users);
+    // Attach pre-signed avatar URLs
+    const usersWithPresigned = users.map(u => {
+      const userObj = u.toObject();
+      if (userObj.avatarUrl) {
+        userObj.avatarUrl = getPresignedUrl(userObj.avatarUrl);
+      }
+      return userObj;
+    });
+    res.json(usersWithPresigned);
   } catch (err) {
     console.error("Failed to fetch users:", err);
     res.status(500).json({ message: "Internal server error" });
@@ -73,7 +103,11 @@ router.get("/me", authenticateToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.json(user);
+    const userObj = user.toObject();
+    if (userObj.avatarUrl) {
+      userObj.avatarUrl = getPresignedUrl(userObj.avatarUrl);
+    }
+    res.json(userObj);
   } catch (err) {
     console.error("Failed to fetch user profile:", err);
     res.status(500).json({ message: "Internal server error" });
@@ -253,49 +287,21 @@ router.put("/me/password", authenticateToken, async (req, res) => {
   }
 });
 
-// ✅ Upload avatar
-router.post("/me/avatar", authenticateToken, upload.single('avatar'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
-    const avatarUrl = `/api/users/avatars/${req.file.filename}`;
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { avatarUrl },
-      { new: true }
-    ).select("-password");
-    res.json({ message: "Avatar updated", user });
-  } catch (err) {
-    console.error("Failed to upload avatar:", err);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
 // ✅ Delete avatar
 router.delete("/me/avatar", authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    if (user.avatarUrl) {
-      const filePath = path.join(avatarDir, path.basename(user.avatarUrl));
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-    user.avatarUrl = undefined;
-    await user.save();
-    res.json({ message: "Avatar deleted" });
+    // Remove avatarUrl using findByIdAndUpdate to avoid password validation error
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatarUrl: null },
+      { new: true }
+    ).select("-password");
+    res.json({ message: "Avatar deleted", user });
   } catch (err) {
     console.error("Failed to delete avatar:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-// ✅ Serve avatars statically
-router.use('/avatars', express.static(avatarDir));
 
 // ✅ Get all teams (authenticated only)
 router.get("/teams", authenticateToken, teamController.getTeams);

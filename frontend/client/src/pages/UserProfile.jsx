@@ -84,6 +84,8 @@ const UserProfile = () => {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [cacheBuster, setCacheBuster] = useState(Date.now());
+  const [croppedAvatarBlob, setCroppedAvatarBlob] = useState(null);
 
   const TABS = [
     { label: 'Contact Information', key: 'contact' },
@@ -131,12 +133,25 @@ const UserProfile = () => {
     }
     setSaving(true);
     try {
+      // 1. Save profile fields
       const res = await userApi.put("/me", { name: nameInput });
-      setUser(res.data);
+      let updatedUser = res.data;
+      // 2. If new avatar, upload it
+      if (croppedAvatarBlob) {
+        const formData = new FormData();
+        formData.append('avatar', croppedAvatarBlob, 'avatar.jpg');
+        const avatarRes = await userApi.post('/me/avatar', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        updatedUser = avatarRes.data.user;
+        setCroppedAvatarBlob(null);
+        setCacheBuster(Date.now());
+      }
+      setUser(updatedUser);
       setEditMode(false);
-      toast.success("Name updated successfully");
+      toast.success("Profile updated successfully");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update name");
+      toast.error(err.response?.data?.message || "Failed to update profile");
     } finally {
       setSaving(false);
     }
@@ -167,46 +182,12 @@ const UserProfile = () => {
     }
   };
 
-  const handleAvatarInput = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSelectedImage(reader.result);
-      setCropModalOpen(true);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const onCropComplete = (croppedArea, croppedAreaPixels) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  };
-
-  const handleCropSave = async () => {
-    setAvatarUploading(true);
-    try {
-      const croppedBlob = await getCroppedImg(selectedImage, croppedAreaPixels, zoom, 1);
-      const formData = new FormData();
-      formData.append('avatar', croppedBlob, 'avatar.jpg');
-      const res = await userApi.post('/me/avatar', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setUser(res.data.user);
-      toast.success('Avatar updated!');
-      setCropModalOpen(false);
-      setSelectedImage(null);
-    } catch (err) {
-      toast.error('Failed to upload avatar');
-    } finally {
-      setAvatarUploading(false);
-    }
-  };
-
   const handleDeleteAvatar = async () => {
     setAvatarUploading(true);
     try {
-      await userApi.delete('/me/avatar');
-      setUser((u) => ({ ...u, avatarUrl: null }));
+      const res = await userApi.delete('/me/avatar');
+      setUser(res.data.user);
+      setCacheBuster(Date.now()); // Update cacheBuster after delete
       toast.success('Avatar deleted');
     } catch (err) {
       toast.error('Failed to delete avatar');
@@ -252,226 +233,197 @@ const UserProfile = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-8 px-2">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-8 flex flex-col md:flex-row gap-8">
-        {/* Left: Avatar */}
-        <div className="flex flex-col items-center md:items-start md:justify-center md:w-1/3">
-          <div className="relative group mb-4">
-            <img
-              src={user.avatarUrl ? user.avatarUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.email)}&background=0D8ABC&color=fff&size=128`}
-              alt="Avatar"
-              className="w-28 h-28 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-lg"
-            />
-            <label className="absolute bottom-1 right-1 bg-blue-600 text-white p-2 rounded-full shadow-lg cursor-pointer hover:bg-blue-700 transition-colors border-2 border-white dark:border-gray-800" title="Change Photo">
-              <FaCamera size={16} />
-              <input type="file" accept="image/*" onChange={handleAvatarInput} disabled={avatarUploading} className="hidden" />
-            </label>
-            {user.avatarUrl && (
-              <button className="absolute top-1 right-1 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors border-2 border-white dark:border-gray-800" onClick={handleDeleteAvatar} disabled={avatarUploading} title="Delete Photo">
-                <FaTrash size={14} />
-              </button>
-            )}
-            {avatarUploading && <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-gray-900/70 rounded-full"><span className="text-xs text-gray-700 dark:text-gray-200">Uploading...</span></div>}
-          </div>
-        </div>
-        {/* Right: Info stack */}
-        <div className="flex-1 flex flex-col gap-4 justify-center">
-          {/* Name */}
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">{user.name || <span className="italic text-gray-400">No name set</span>}</span>
-            {editField !== 'name' && (
-              <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" onClick={() => { setEditField('name'); setEditMode(true); }} title="Edit Name"><FaEdit size={18} className="opacity-60 group-hover:opacity-100" /></button>
-            )}
-          </div>
-          {editField === 'name' && (
-            <div className="flex items-center gap-2">
-              <input type="text" className="border rounded px-2 py-1 text-base w-64 focus:ring-2 focus:ring-blue-400" value={nameInput} onChange={e => setNameInput(e.target.value)} autoFocus />
-              <button className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700" onClick={handleSave} title="Save"><FaCheck /></button>
-              <button className="ml-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={handleCancel}><FaTimes /></button>
+    <>
+      {/* Main Profile UI */}
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-8 px-2">
+        <div className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 p-8 flex flex-col md:flex-row gap-8">
+          {/* Left: Avatar */}
+          <div className="flex flex-col items-center md:items-start md:justify-center md:w-1/3">
+            <div className="relative group mb-4">
+              <img
+                src={
+                  user.avatarUrl
+                    ? `${user.avatarUrl}${user.avatarUrl.includes('?') ? '&' : '?'}cb=${cacheBuster}`
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.email)}&background=0D8ABC&color=fff&size=128`
+                }
+                alt="Avatar"
+                className="w-28 h-28 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-lg"
+              />
+              {user.avatarUrl && (
+                <button className="absolute top-1 right-1 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors border-2 border-white dark:border-gray-800" onClick={handleDeleteAvatar} disabled={avatarUploading} title="Delete Photo">
+                  <FaTrash size={14} />
+                </button>
+              )}
+              {avatarUploading && <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-gray-900/70 rounded-full"><span className="text-xs text-gray-700 dark:text-gray-200">Uploading...</span></div>}
             </div>
-          )}
-          {/* Title */}
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-black dark:text-white">Title:</span>
-            {editField === 'title' ? (
-              <>
-                <input type="text" className="border rounded px-2 py-1 text-base w-64" value={titleInput} onChange={e => setTitleInput(e.target.value)} autoFocus />
-                <button className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700" onClick={() => handleSaveField('title')}><FaCheck /></button>
-                <button className="ml-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setEditField(null)}><FaTimes /></button>
-              </>
-            ) : (
-              <span className="text-blue-600 cursor-pointer">{user.title || "What's your title?"}</span>
-            )}
-            {editField !== 'title' && (
-              <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" onClick={() => setEditField('title')} title="Edit Title"><FaEdit size={18} className="opacity-60 group-hover:opacity-100" /></button>
-            )}
           </div>
-          {/* Bio */}
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-black dark:text-white">Bio:</span>
-            {editField === 'bio' ? (
-              <>
-                <textarea className="border rounded px-2 py-1 text-base w-64" value={bioInput} onChange={e => setBioInput(e.target.value)} autoFocus />
-                <button className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700" onClick={() => handleSaveField('bio')}><FaCheck /></button>
-                <button className="ml-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setEditField(null)}><FaTimes /></button>
-              </>
-            ) : (
-              <span className="text-blue-600 cursor-pointer">{user.bio || ""}</span>
+          {/* Right: Info stack */}
+          <div className="flex-1 flex flex-col gap-4 justify-center">
+            {/* Name */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">{user.name || <span className="italic text-gray-400">No name set</span>}</span>
+              {editField !== 'name' && (
+                <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" onClick={() => { setEditField('name'); setEditMode(true); }} title="Edit Name"><FaEdit size={18} className="opacity-60 group-hover:opacity-100" /></button>
+              )}
+            </div>
+            {editField === 'name' && (
+              <div className="flex items-center gap-2">
+                <input type="text" className="border rounded px-2 py-1 text-base w-64 focus:ring-2 focus:ring-blue-400" value={nameInput} onChange={e => setNameInput(e.target.value)} autoFocus />
+                <button className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700" onClick={handleSave} title="Save"><FaCheck /></button>
+                <button className="ml-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={handleCancel}><FaTimes /></button>
+              </div>
             )}
-            {editField !== 'bio' && (
-              <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" onClick={() => setEditField('bio')} title="Edit Bio"><FaEdit size={18} className="opacity-60 group-hover:opacity-100" /></button>
-            )}
-          </div>
-          {/* Email */}
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-black dark:text-white">Email:</span>
-            <span>{user.email}</span>
-          </div>
-          {/* Email Addresses */}
-          <div className="mt-4">
-            <div className="text-base font-bold mb-2">Email Addresses</div>
-            <div className="flex flex-col gap-2">
-              {emails.length === 0 && <div className="text-gray-400 italic">No email addresses added.</div>}
-              {emails.map((emailObj, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <span>{emailObj.value}</span>
-                  {emailObj.verified ? (
-                    <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">Verified</span>
-                  ) : (
-                    <span className="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full">Pending</span>
-                  )}
-                  {!emailObj.verified && (
-                    <>
-                      <button className="text-blue-600 underline text-xs ml-1" onClick={() => { setVerifyEmailIdx(idx); setVerifyCode(''); }}>Verify</button>
-                      <button className="text-xs ml-1 text-gray-500 hover:text-blue-600" disabled={resendingIdx === idx} onClick={async () => {
-                        setResendingIdx(idx);
+            {/* Title */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-black dark:text-white">Title:</span>
+              {editField === 'title' ? (
+                <>
+                  <input type="text" className="border rounded px-2 py-1 text-base w-64" value={titleInput} onChange={e => setTitleInput(e.target.value)} autoFocus />
+                  <button className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700" onClick={() => handleSaveField('title')}><FaCheck /></button>
+                  <button className="ml-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setEditField(null)}><FaTimes /></button>
+                </>
+              ) : (
+                <span className="text-blue-600 cursor-pointer">{user.title || "What's your title?"}</span>
+              )}
+              {editField !== 'title' && (
+                <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" onClick={() => setEditField('title')} title="Edit Title"><FaEdit size={18} className="opacity-60 group-hover:opacity-100" /></button>
+              )}
+            </div>
+            {/* Bio */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-black dark:text-white">Bio:</span>
+              {editField === 'bio' ? (
+                <>
+                  <textarea className="border rounded px-2 py-1 text-base w-64" value={bioInput} onChange={e => setBioInput(e.target.value)} autoFocus />
+                  <button className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700" onClick={() => handleSaveField('bio')}><FaCheck /></button>
+                  <button className="ml-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setEditField(null)}><FaTimes /></button>
+                </>
+              ) : (
+                <span className="text-blue-600 cursor-pointer">{user.bio || ""}</span>
+              )}
+              {editField !== 'bio' && (
+                <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group" onClick={() => setEditField('bio')} title="Edit Bio"><FaEdit size={18} className="opacity-60 group-hover:opacity-100" /></button>
+              )}
+            </div>
+            {/* Email */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-black dark:text-white">Email:</span>
+              <span>{user.email}</span>
+            </div>
+            {/* Email Addresses */}
+            <div className="mt-4">
+              <div className="text-base font-bold mb-2">Email Addresses</div>
+              <div className="flex flex-col gap-2">
+                {emails.length === 0 && <div className="text-gray-400 italic">No email addresses added.</div>}
+                {emails.map((emailObj, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span>{emailObj.value}</span>
+                    {emailObj.verified ? (
+                      <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">Verified</span>
+                    ) : (
+                      <span className="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full">Pending</span>
+                    )}
+                    {!emailObj.verified && (
+                      <>
+                        <button className="text-blue-600 underline text-xs ml-1" onClick={() => { setVerifyEmailIdx(idx); setVerifyCode(''); }}>Verify</button>
+                        <button className="text-xs ml-1 text-gray-500 hover:text-blue-600" disabled={resendingIdx === idx} onClick={async () => {
+                          setResendingIdx(idx);
+                          try {
+                            await userApi.post('/resend-email-verification', { email: emailObj.value });
+                            toast.success('Verification email resent');
+                          } catch {
+                            toast.error('Failed to resend email');
+                          }
+                          setResendingIdx(null);
+                        }}>Resend</button>
+                      </>
+                    )}
+                    {emails.length > 1 && idx !== 0 && (
+                      <button className="text-red-500" onClick={async () => {
                         try {
-                          await userApi.post('/resend-email-verification', { email: emailObj.value });
-                          toast.success('Verification email resent');
+                          await userApi.delete('/me/email', { data: { email: emailObj.value } });
+                          setEmails(emails.filter((_, i) => i !== idx));
+                          toast.success('Email deleted');
                         } catch {
-                          toast.error('Failed to resend email');
+                          toast.error('Failed to delete email');
                         }
-                        setResendingIdx(null);
-                      }}>Resend</button>
-                    </>
-                  )}
-                  {emails.length > 1 && idx !== 0 && (
-                    <button className="text-red-500" onClick={async () => {
+                      }}><FaTrash size={16} /></button>
+                    )}
+                  </div>
+                ))}
+                {/* Verification input modal/inline */}
+                {verifyEmailIdx !== null && emails[verifyEmailIdx] && !emails[verifyEmailIdx].verified && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input type="text" className="border rounded px-2 py-1 text-xs w-32" placeholder="Enter code" value={verifyCode} onChange={e => setVerifyCode(e.target.value)} autoFocus />
+                    <button className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 text-xs" onClick={async () => {
                       try {
-                        await userApi.delete('/me/email', { data: { email: emailObj.value } });
-                        setEmails(emails.filter((_, i) => i !== idx));
-                        toast.success('Email deleted');
+                        await userApi.post('/verify-email', { email: emails[verifyEmailIdx].value, code: verifyCode });
+                        toast.success('Email verified!');
+                        setVerifyEmailIdx(null);
+                        // Refresh user/emails
+                        const res = await userApi.get('/me');
+                        setUser(res.data);
+                        setEmails(res.data.emails);
                       } catch {
-                        toast.error('Failed to delete email');
+                        toast.error('Invalid or expired code');
                       }
-                    }}><FaTrash size={16} /></button>
-                  )}
-                </div>
-              ))}
-              {/* Verification input modal/inline */}
-              {verifyEmailIdx !== null && emails[verifyEmailIdx] && !emails[verifyEmailIdx].verified && (
+                    }}>Submit</button>
+                    <button className="ml-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs" onClick={() => setVerifyEmailIdx(null)}>Cancel</button>
+                  </div>
+                )}
+                {/* Add email UI */}
                 <div className="flex items-center gap-2 mt-2">
-                  <input type="text" className="border rounded px-2 py-1 text-xs w-32" placeholder="Enter code" value={verifyCode} onChange={e => setVerifyCode(e.target.value)} autoFocus />
-                  <button className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 text-xs" onClick={async () => {
+                  <input type="email" className="border rounded px-2 py-1 text-base w-64" placeholder="Add email" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+                  <button className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 font-semibold" onClick={async () => {
+                    if (!newEmail) return;
+                    const updated = [...emails, { value: newEmail, verified: false, pending: true }];
                     try {
-                      await userApi.post('/verify-email', { email: emails[verifyEmailIdx].value, code: verifyCode });
-                      toast.success('Email verified!');
-                      setVerifyEmailIdx(null);
-                      // Refresh user/emails
-                      const res = await userApi.get('/me');
+                      const res = await userApi.put('/me', { emails: updated });
                       setUser(res.data);
                       setEmails(res.data.emails);
+                      setNewEmail('');
+                      toast.success('Email added');
                     } catch {
-                      toast.error('Invalid or expired code');
+                      toast.error('Failed to add email');
                     }
-                  }}>Submit</button>
-                  <button className="ml-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs" onClick={() => setVerifyEmailIdx(null)}>Cancel</button>
+                  }}>+ Add</button>
                 </div>
-              )}
-              {/* Add email UI */}
-              <div className="flex items-center gap-2 mt-2">
-                <input type="email" className="border rounded px-2 py-1 text-base w-64" placeholder="Add email" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
-                <button className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 font-semibold" onClick={async () => {
-                  if (!newEmail) return;
-                  const updated = [...emails, { value: newEmail, verified: false, pending: true }];
-                  try {
-                    const res = await userApi.put('/me', { emails: updated });
-                    setUser(res.data);
-                    setEmails(res.data.emails);
-                    setNewEmail('');
-                    toast.success('Email added');
-                  } catch {
-                    toast.error('Failed to add email');
-                  }
-                }}>+ Add</button>
               </div>
             </div>
-          </div>
-          {/* Phone Numbers */}
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-black dark:text-white">Phone:</span>
-            {phones.length === 0 && <span className="text-gray-400 italic">No phone numbers added.</span>}
-            {phones.map((phoneObj, idx) => (
-              <span key={idx} className="flex items-center gap-1 font-mono">
-                {phoneObj.value}
-                {phoneObj.verified ? (
-                  <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full ml-1">Verified</span>
-                ) : (
-                  <span className="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full ml-1">Pending</span>
-                )}
-              </span>
-            ))}
-          </div>
-          {/* Time Zone */}
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-black dark:text-white">Time Zone:</span>
-            <span>{user.timezone || 'UTC'}</span>
-          </div>
-          {/* Current Time */}
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-black dark:text-white">Current Time:</span>
-            <span>{new Date().toLocaleTimeString()} (Your local time)</span>
+            {/* Phone Numbers */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-black dark:text-white">Phone:</span>
+              {phones.length === 0 && <span className="text-gray-400 italic">No phone numbers added.</span>}
+              {phones.map((phoneObj, idx) => (
+                <span key={idx} className="flex items-center gap-1 font-mono">
+                  {phoneObj.value}
+                  {phoneObj.verified ? (
+                    <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full ml-1">Verified</span>
+                  ) : (
+                    <span className="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full ml-1">Pending</span>
+                  )}
+                </span>
+              ))}
+            </div>
+            {/* Time Zone */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-black dark:text-white">Time Zone:</span>
+              <span>{user.timezone || 'UTC'}</span>
+            </div>
+            {/* Current Time */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-black dark:text-white">Current Time:</span>
+              <span>{new Date().toLocaleTimeString()} (Your local time)</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      {/* Global Footer */}
+      <footer className="w-full flex justify-center items-center text-xs text-blue-900/40 dark:text-gray-500 mt-4 mb-2 select-none">
+        <span className="opacity-70">© {new Date().getFullYear()} IncidentFlow. All rights reserved.</span>
+      </footer>
+    </>
   );
 };
-
-function getCroppedImg(imageSrc, crop, zoom, aspect) {
-  // Utility to crop the image in the browser and return a blob
-  // (Implementation will use canvas)
-  return new Promise((resolve, reject) => {
-    const image = new window.Image();
-    image.src = imageSrc;
-    image.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
-      canvas.width = crop.width;
-      canvas.height = crop.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(
-        image,
-        crop.x * scaleX,
-        crop.y * scaleY,
-        crop.width * scaleX,
-        crop.height * scaleY,
-        0,
-        0,
-        crop.width,
-        crop.height
-      );
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          reject(new Error('Canvas is empty'));
-          return;
-        }
-        resolve(blob);
-      }, 'image/jpeg');
-    };
-    image.onerror = reject;
-  });
-}
 
 export default UserProfile; 
