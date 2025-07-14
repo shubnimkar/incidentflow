@@ -1,8 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
 
 const {
   createIncident,
@@ -29,17 +34,8 @@ const { verifyToken, canEditIncident } = require("../middleware/auth");
 const requireAdmin = require("../middleware/admin");
 const AuditLog = require("../models/AuditLog");
 
-// Setup multer for this route
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../../uploads/incident-attachments'));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
-  }
-});
-const upload = multer({ storage });
+// Use S3-based upload from controller
+const { upload: s3Upload } = require("../controllers/incidentController");
 
 // Advanced comment routes (must be above router.get('/:id', ...))
 router.patch('/:id/comments/:commentId', verifyToken, editComment);
@@ -78,7 +74,7 @@ router.get("/logs/:incidentId", verifyToken, async (req, res) => {
 router.post(
   "/:id/attachments",
   verifyToken,
-  upload.single("file"),
+  s3Upload.single("file"),
   uploadAttachment
 );
 
@@ -86,27 +82,36 @@ router.post(
 router.delete("/:id/attachments/:filename", verifyToken, requireAdmin, async (req, res) => {
   const Incident = require("../models/Incident");
   const AuditLog = require("../models/AuditLog");
-  const filePath = path.join(__dirname, '../../uploads/incident-attachments', req.params.filename);
   try {
-    // Remove file from disk
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    // Find the incident
+    const incident = await Incident.findById(req.params.id);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+    // Find the attachment by filename
+    const attachment = incident.attachments.find(att => att.filename === req.params.filename || (att.url && att.url.includes(req.params.filename)));
+    if (!attachment) return res.status(404).json({ message: "Attachment not found" });
+    // Extract S3 key from URL
+    const url = new URL(attachment.url);
+    const key = decodeURIComponent(url.pathname).replace(/^\//, '');
+    // Delete from S3
+    await s3.deleteObject({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+    }).promise();
     // Remove from attachments array
-    const incident = await Incident.findByIdAndUpdate(
+    await Incident.findByIdAndUpdate(
       req.params.id,
-      { $pull: { attachments: { url: `/uploads/incident-attachments/${req.params.filename}` } } },
+      { $pull: { attachments: { url: attachment.url } } },
       { new: true }
-    )
+    );
+    // Log audit
+    await AuditLog.create({ action: "deleted attachment", performedBy: req.user.id, incident: req.params.id, details: { filename: attachment.filename } });
+    // Return updated incident
+    const updatedIncident = await Incident.findById(req.params.id)
       .populate("createdBy", "email")
       .populate("assignedTo", "email")
       .populate("comments.user", "email role")
       .populate("attachments.uploadedBy", "email");
-    // Find the display filename for the deleted attachment
-    const displayFilename = (incident.attachments.find(att => att.url.endsWith(`/${req.params.filename}`))?.filename) || req.params.filename;
-    // Log audit with filename
-    await AuditLog.create({ action: "deleted attachment", performedBy: req.user.id, incident: req.params.id, details: { filename: displayFilename } });
-    res.json(incident);
+    res.json(updatedIncident);
   } catch (err) {
     console.error("Failed to delete attachment:", err);
     res.status(500).json({ message: "Failed to delete attachment" });

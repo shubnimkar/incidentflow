@@ -4,6 +4,8 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const GitHubStrategy = require('passport-github2').Strategy;
 const MicrosoftStrategy = require('passport-microsoft').Strategy;
 const User = require('../models/User');
+const sendEmail = require("../utils/sendEmail");
+const emailTemplates = require("../utils/emailTemplates");
 
 // Google OAuth Strategy
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -47,6 +49,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       });
       console.log('[Google SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
       await newUser.save();
+      // Send welcome email to new SSO user
+      try {
+        await sendEmail(
+          newUser.email,
+          "Welcome to IncidentFlow!",
+          emailTemplates.welcomeEmail(newUser.name)
+        );
+      } catch (err) {
+        console.error("[Google SSO] Failed to send welcome email:", err);
+      }
       return done(null, newUser);
     } catch (error) {
       return done(error, null);
@@ -95,6 +107,16 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
       });
       console.log('[GitHub SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
       await newUser.save();
+      // Send welcome email to new SSO user
+      try {
+        await sendEmail(
+          newUser.email,
+          "Welcome to IncidentFlow!",
+          emailTemplates.welcomeEmail(newUser.name)
+        );
+      } catch (err) {
+        console.error("[GitHub SSO] Failed to send welcome email:", err);
+      }
       return done(null, newUser);
     } catch (error) {
       return done(error, null);
@@ -152,6 +174,16 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
       });
       console.log('[Microsoft SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
       await newUser.save();
+      // Send welcome email to new SSO user
+      try {
+        await sendEmail(
+          newUser.email,
+          "Welcome to IncidentFlow!",
+          emailTemplates.welcomeEmail(newUser.name)
+        );
+      } catch (err) {
+        console.error("[Microsoft SSO] Failed to send welcome email:", err);
+      }
       return done(null, newUser);
     } catch (error) {
       return done(error, null);

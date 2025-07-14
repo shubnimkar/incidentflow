@@ -119,187 +119,193 @@ export default function CreateIncident() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 py-6">
-      {/* Header with icon and breadcrumbs */}
-      <div className="flex items-center gap-4 mb-8 max-w-2xl">
-        <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-blue-50">
-          <FaPlusCircle className="text-blue-600 text-2xl" />
-        </span>
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Create Incident</h1>
-          <nav className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Home / <span className="text-gray-700 dark:text-gray-200 font-semibold">Create Incident</span>
-          </nav>
+    <>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 py-6">
+        {/* Header with icon and breadcrumbs */}
+        <div className="flex items-center gap-4 mb-8 max-w-2xl">
+          <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-blue-50">
+            <FaPlusCircle className="text-blue-600 text-2xl" />
+          </span>
+          <div>
+            <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Create Incident</h1>
+            <nav className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Home / <span className="text-gray-700 dark:text-gray-200 font-semibold">Create Incident</span>
+            </nav>
+          </div>
+        </div>
+        <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 border border-gray-200 dark:border-gray-700 animate-fade-in mx-auto">
+          <h2 className="text-2xl font-bold mb-2 text-center text-gray-900 dark:text-white">Create New Incident</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-300 mb-6 text-center">Fill out the details below to create a new incident.</p>
+          {error && <div className="mb-4 p-2 rounded bg-red-100 text-red-700 text-sm text-center">{error}</div>}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Title<span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={e => handleChange("title", e.target.value)}
+                required
+                className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            {/* Incident Type */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Incident Type<span className="text-red-500">*</span></label>
+              <Select
+                options={incidentTypeOptions}
+                value={form.incidentType}
+                onChange={option => handleChange("incidentType", option)}
+                required
+                isSearchable
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
+            </div>
+            {/* Impacted Service */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Impacted Service<span className="text-red-500">*</span></label>
+              <Select
+                options={serviceOptions}
+                value={form.impactedService}
+                onChange={option => handleChange("impactedService", option)}
+                required
+                isSearchable
+                placeholder="Search..."
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
+            </div>
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Description</label>
+              <textarea
+                value={form.description}
+                onChange={e => handleChange("description", e.target.value)}
+                rows={4}
+                className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            {/* Urgency */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200 flex items-center gap-1">
+                Urgency
+                <span className="text-gray-400 cursor-pointer" title="How responders are notified.">ⓘ</span>
+              </label>
+              <Select
+                options={urgencyOptions}
+                value={form.urgency}
+                onChange={option => handleChange("urgency", option)}
+                isSearchable
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
+              <p className="text-xs text-gray-400 mt-1">How responders are notified.</p>
+            </div>
+            {/* Priority */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Priority</label>
+              <Select
+                options={priorityOptions}
+                value={form.priority || priorityOptions[2]}
+                onChange={option => handleChange("priority", option)}
+                isSearchable
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
+              <p className="text-xs text-gray-400 mt-1">Helps responders know which incidents to focus on first.</p>
+            </div>
+            {/* Assignee */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Assignee</label>
+              <Select
+                options={userOptions}
+                value={form.assignee}
+                onChange={option => handleChange("assignee", option)}
+                isSearchable
+                placeholder="Search..."
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
+            </div>
+            {/* Team */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Team</label>
+              <Select
+                options={teamOptions}
+                value={form.team}
+                onChange={option => handleChange("team", option)}
+                isSearchable
+                placeholder="Select team..."
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
+            </div>
+            {/* Advanced Options */}
+            <div>
+              <button
+                type="button"
+                className="w-full text-left text-sm font-semibold text-blue-600 dark:text-blue-400 py-2 px-1 hover:underline focus:outline-none"
+                onClick={() => setShowAdvanced((v) => !v)}
+              >
+                {showAdvanced ? "▼" : "►"} Advanced Options
+              </button>
+              {showAdvanced && (
+                <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mt-2 space-y-4">
+                  {/* Add additional responders */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Add additional responders to help</label>
+                    <Select
+                      options={userOptions}
+                      value={form.responders}
+                      onChange={options => handleChange("responders", options || [])}
+                      isMulti
+                      isSearchable
+                      placeholder="Search..."
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                  </div>
+                  {/* Meeting URL */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Meeting URL</label>
+                    <input
+                      type="text"
+                      value={form.meetingUrl}
+                      onChange={e => handleChange("meetingUrl", e.target.value)}
+                      placeholder="https://example.com/123-456-789"
+                      className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Action Buttons */}
+            <div className="flex gap-2 mt-6">
+              <button
+                type="button"
+                className="w-1/2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                onClick={() => navigate('/dashboard')}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition flex items-center justify-center"
+                disabled={loading}
+              >
+                {loading && <span className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full inline-block"></span>}
+                Create Incident
+              </button>
+            </div>
+          </form>
         </div>
       </div>
-      <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 border border-gray-200 dark:border-gray-700 animate-fade-in mx-auto">
-        <h2 className="text-2xl font-bold mb-2 text-center text-gray-900 dark:text-white">Create New Incident</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-300 mb-6 text-center">Fill out the details below to create a new incident.</p>
-        {error && <div className="mb-4 p-2 rounded bg-red-100 text-red-700 text-sm text-center">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Title<span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={e => handleChange("title", e.target.value)}
-              required
-              className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          {/* Incident Type */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Incident Type<span className="text-red-500">*</span></label>
-            <Select
-              options={incidentTypeOptions}
-              value={form.incidentType}
-              onChange={option => handleChange("incidentType", option)}
-              required
-              isSearchable
-              className="react-select-container"
-              classNamePrefix="react-select"
-            />
-          </div>
-          {/* Impacted Service */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Impacted Service<span className="text-red-500">*</span></label>
-            <Select
-              options={serviceOptions}
-              value={form.impactedService}
-              onChange={option => handleChange("impactedService", option)}
-              required
-              isSearchable
-              placeholder="Search..."
-              className="react-select-container"
-              classNamePrefix="react-select"
-            />
-          </div>
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Description</label>
-            <textarea
-              value={form.description}
-              onChange={e => handleChange("description", e.target.value)}
-              rows={4}
-              className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          {/* Urgency */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200 flex items-center gap-1">
-              Urgency
-              <span className="text-gray-400 cursor-pointer" title="How responders are notified.">ⓘ</span>
-            </label>
-            <Select
-              options={urgencyOptions}
-              value={form.urgency}
-              onChange={option => handleChange("urgency", option)}
-              isSearchable
-              className="react-select-container"
-              classNamePrefix="react-select"
-            />
-            <p className="text-xs text-gray-400 mt-1">How responders are notified.</p>
-          </div>
-          {/* Priority */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Priority</label>
-            <Select
-              options={priorityOptions}
-              value={form.priority || priorityOptions[2]}
-              onChange={option => handleChange("priority", option)}
-              isSearchable
-              className="react-select-container"
-              classNamePrefix="react-select"
-            />
-            <p className="text-xs text-gray-400 mt-1">Helps responders know which incidents to focus on first.</p>
-          </div>
-          {/* Assignee */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Assignee</label>
-            <Select
-              options={userOptions}
-              value={form.assignee}
-              onChange={option => handleChange("assignee", option)}
-              isSearchable
-              placeholder="Search..."
-              className="react-select-container"
-              classNamePrefix="react-select"
-            />
-          </div>
-          {/* Team */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Team</label>
-            <Select
-              options={teamOptions}
-              value={form.team}
-              onChange={option => handleChange("team", option)}
-              isSearchable
-              placeholder="Select team..."
-              className="react-select-container"
-              classNamePrefix="react-select"
-            />
-          </div>
-          {/* Advanced Options */}
-          <div>
-            <button
-              type="button"
-              className="w-full text-left text-sm font-semibold text-blue-600 dark:text-blue-400 py-2 px-1 hover:underline focus:outline-none"
-              onClick={() => setShowAdvanced((v) => !v)}
-            >
-              {showAdvanced ? "▼" : "►"} Advanced Options
-            </button>
-            {showAdvanced && (
-              <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mt-2 space-y-4">
-                {/* Add additional responders */}
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Add additional responders to help</label>
-                  <Select
-                    options={userOptions}
-                    value={form.responders}
-                    onChange={options => handleChange("responders", options || [])}
-                    isMulti
-                    isSearchable
-                    placeholder="Search..."
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                  />
-                </div>
-                {/* Meeting URL */}
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Meeting URL</label>
-                  <input
-                    type="text"
-                    value={form.meetingUrl}
-                    onChange={e => handleChange("meetingUrl", e.target.value)}
-                    placeholder="https://example.com/123-456-789"
-                    className="w-full border p-2 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          {/* Action Buttons */}
-          <div className="flex gap-2 mt-6">
-            <button
-              type="button"
-              className="w-1/2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-              onClick={() => navigate('/dashboard')}
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition flex items-center justify-center"
-              disabled={loading}
-            >
-              {loading && <span className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full inline-block"></span>}
-              Create Incident
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      {/* Global Footer */}
+      <footer className="w-full flex justify-center items-center text-xs text-blue-900/40 dark:text-gray-500 mt-4 mb-2 select-none">
+        <span className="opacity-70">© {new Date().getFullYear()} IncidentFlow. All rights reserved.</span>
+      </footer>
+    </>
   );
 }
