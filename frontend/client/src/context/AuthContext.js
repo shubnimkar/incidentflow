@@ -1,5 +1,6 @@
 // src/context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { userApi } from "../services/api";
 
 const AuthContext = createContext();
 
@@ -22,10 +23,18 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = (newToken, userData) => {
+  const login = async (newToken, userData) => {
     setToken(newToken);
-    setUser(userData);
     localStorage.setItem("token", newToken);
+    // Fetch latest user profile from /me
+    try {
+      const res = await userApi.get("/me");
+      setUser(res.data);
+      return res.data;
+    } catch (err) {
+      setUser(userData || null);
+      return userData || null;
+    }
   };
 
   const logout = () => {

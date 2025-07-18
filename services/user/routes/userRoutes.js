@@ -4,6 +4,7 @@ const {
   login,
   deleteUser,
   updateMe,
+  getRecentLogs,
 } = require("../controllers/userController");
 const multer = require('multer');
 const fs = require('fs');
@@ -118,9 +119,10 @@ router.get("/me", authenticateToken, async (req, res) => {
 router.put("/me", authenticateToken, async (req, res) => {
   try {
     const updateFields = {};
-    const { name, title, bio, timezone, phones, smsNumbers, emails } = req.body;
-    const user = await User.findById(req.user._id);
+    const { name, title, bio, timezone, phones, smsNumbers, emails, city, country, status } = req.body;
+    const user = await User.findById(req.user._id); // fetch with all fields
     if (!user) return res.status(404).json({ message: "User not found" });
+    let verificationCodesChanged = false;
     if (name !== undefined) {
       if (!name || typeof name !== "string" || name.trim().length === 0) {
         return res.status(400).json({ message: "Name is required" });
@@ -130,6 +132,25 @@ router.put("/me", authenticateToken, async (req, res) => {
     if (title !== undefined) updateFields.title = title;
     if (bio !== undefined) updateFields.bio = bio;
     if (timezone !== undefined) updateFields.timezone = timezone;
+    if (city !== undefined) updateFields.city = city;
+    if (country !== undefined) updateFields.country = country;
+    if (status !== undefined) {
+      // Only allow valid status values
+      const allowedStatuses = [
+        'available',
+        'busy',
+        'do not disturb',
+        'be right back',
+        'appear away',
+        'appear offline'
+      ];
+      if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({ message: 'Invalid status value' });
+      }
+      updateFields.status = status;
+    }
+    // Track new phone verification codes to add after update
+    let newPhoneCodes = [];
     if (phones !== undefined) {
       // Handle phones with verification
       const normalizePhone = (p) => {
@@ -163,7 +184,7 @@ router.put("/me", authenticateToken, async (req, res) => {
           // New phone, add as pending/verified false
           const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
           const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
-          user.verificationCodes.push({ value: phoneObj.value, code, expiresAt, type: 'phone' });
+          newPhoneCodes.push({ value: phoneObj.value, code, expiresAt, type: 'phone' });
           newPhones.push({ value: phoneObj.value, verified: false, pending: true });
           // Send verification SMS
           try {
@@ -213,8 +234,9 @@ router.put("/me", authenticateToken, async (req, res) => {
           const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
           user.verificationCodes.push({ value: emailObj.value, code, expiresAt, type: 'email' });
           newEmails.push({ value: emailObj.value, verified: false, pending: true });
+          verificationCodesChanged = true;
           // Send verification email
-          const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?email=${encodeURIComponent(emailObj.value)}&code=${code}`;
+          const verificationUrl = `${process.env.BACKEND_URL || 'http://localhost:5002/api/users'}/verify-email?email=${encodeURIComponent(emailObj.value)}&code=${code}`;
           console.log('About to send verification email to', emailObj.value); // Debug log
           try {
             await sendEmail(
@@ -229,12 +251,25 @@ router.put("/me", authenticateToken, async (req, res) => {
       }
       updateFields.emails = newEmails;
     }
+    // Main update for all other fields
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       updateFields,
       { new: true, runValidators: true }
     ).select("-password");
-    await user.save(); // Save verificationCodes if changed
+    // Now handle verificationCodes and emails ONLY on a fresh userWithPassword
+    let needToSave = false;
+    let userWithPassword = null;
+    if (newPhoneCodes.length > 0) {
+      // Instead of fetching and saving the user, use updateOne to push verification codes
+      await User.updateOne(
+        { _id: req.user._id },
+        { $push: { verificationCodes: { $each: newPhoneCodes } } }
+      );
+    }
+    // Always check emails on userWithPassword, never on user
+    // (If you need to add a new email, use updateOne as well)
+    // Remove the .save() call entirely for normal profile updates
     res.json(updatedUser);
   } catch (err) {
     console.error("Failed to update user profile:", err);
@@ -260,6 +295,26 @@ router.post("/verify-email", async (req, res) => {
   } catch (err) {
     console.error("Failed to verify email:", err);
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// GET /verify-email for email link verification with redirect
+router.get('/verify-email', async (req, res) => {
+  try {
+    const { email, code } = req.query;
+    const user = await User.findOne({ 'emails.value': email });
+    if (!user) return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email-result?status=error&reason=user_not_found`);
+    const vCode = user.verificationCodes.find(vc => vc.value === email && vc.code === code && vc.type === 'email');
+    if (!vCode || vCode.expiresAt < new Date()) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email-result?status=error&reason=invalid_or_expired`);
+    }
+    user.emails = user.emails.map(e => e.value === email ? { ...e.toObject(), verified: true, pending: false } : e);
+    user.verificationCodes = user.verificationCodes.filter(vc => !(vc.value === email && vc.code === code && vc.type === 'email'));
+    await user.save();
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email-result?status=success`);
+  } catch (err) {
+    console.error('Failed to verify email (GET):', err);
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email-result?status=error&reason=server_error`);
   }
 });
 
@@ -306,25 +361,7 @@ router.delete("/me/avatar", authenticateToken, async (req, res) => {
 // ✅ Get all teams (authenticated only)
 router.get("/teams", authenticateToken, teamController.getTeams);
 
-// ✅ Admin-protected routes
-router.use(authenticateToken, authorizeAdmin);
-
-// Team management routes (admin only)
-router.post("/teams", teamController.createTeam);
-router.get("/teams/:id", teamController.getTeamById);
-router.put("/teams/:id", teamController.updateTeam);
-router.delete("/teams/:id", teamController.deleteTeam);
-router.post("/teams/:id/add-member", teamController.addMember);
-router.post("/teams/:id/remove-member", teamController.removeMember);
-router.get("/teams/:id/audit-logs", teamController.getTeamAuditLogs);
-
-// Change user role (admin only)
-router.patch("/:id/role", adminController.updateUserRole);
-
-// Delete user (admin only)
-router.delete("/:id", deleteUser);
-
-// Resend email verification endpoint
+// Send email verification code
 router.post('/resend-email-verification', authenticateToken, async (req, res) => {
   try {
     const { email } = req.body;
@@ -332,21 +369,76 @@ router.post('/resend-email-verification', authenticateToken, async (req, res) =>
     if (!user) return res.status(404).json({ message: 'User not found' });
     const emailObj = user.emails.find(e => e.value === email && !e.verified);
     if (!emailObj) return res.status(400).json({ message: 'Email not found or already verified' });
-
-    const code = crypto.randomBytes(16).toString('hex');
+    const code = require('crypto').randomBytes(16).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     user.verificationCodes.push({ value: email, code, expiresAt, type: 'email' });
-
-    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?email=${encodeURIComponent(email)}&code=${code}`;
-    await sendEmail(
-      email,
-      'Verify your email address',
-      emailTemplates.verificationEmail(user.name, verificationUrl)
-    );
+    const verificationUrl = `${process.env.BACKEND_URL || 'http://localhost:5002/api/users'}/verify-email?email=${encodeURIComponent(email)}&code=${code}`;
+    await require('../../auth/utils/sendEmail')(email, 'Verify your email address', require('../../auth/utils/emailTemplates').verificationEmail(user.name, verificationUrl));
     await user.save();
-    res.json({ message: 'Verification email resent' });
+    res.json({ message: 'Verification email sent' });
   } catch (err) {
-    console.error('Failed to resend verification email:', err);
+    console.error('Failed to send verification email:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+// Send phone verification code
+router.post('/send-phone-verification', authenticateToken, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    // E.164 validation
+    if (!/^\+[1-9]\d{1,14}$/.test(phone)) {
+      return res.status(400).json({ message: 'Invalid phone number format. Use +<countrycode><number>' });
+    }
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const phoneObj = (user.phones || []).find(p => p.value === phone && !p.verified);
+    if (!phoneObj) return res.status(400).json({ message: 'Phone not found or already verified' });
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.verificationCodes.push({ value: phone, code, expiresAt, type: 'phone' });
+    await sendSMS(phone, `Your Incident Flow verification code is: ${code}`);
+    await user.save();
+    res.json({ message: 'Verification SMS sent' });
+  } catch (err) {
+    console.error('Failed to send verification SMS:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+// Verify email
+router.post('/verify-email', authenticateToken, async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const vCode = user.verificationCodes.find(vc => vc.value === email && vc.code === code && vc.type === 'email');
+    if (!vCode || vCode.expiresAt < new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired code' });
+    }
+    user.emails = user.emails.map(e => e.value === email ? { ...e.toObject(), verified: true, pending: false } : e);
+    user.verificationCodes = user.verificationCodes.filter(vc => !(vc.value === email && vc.code === code && vc.type === 'email'));
+    await user.save();
+    res.json({ message: 'Email verified' });
+  } catch (err) {
+    console.error('Failed to verify email:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+// Verify phone
+router.post('/verify-phone', authenticateToken, async (req, res) => {
+  try {
+    const { phone, code } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const vCode = user.verificationCodes.find(vc => vc.value === phone && vc.code === code && vc.type === 'phone');
+    if (!vCode || vCode.expiresAt < new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired code' });
+    }
+    user.phones = user.phones.map(p => p.value === phone ? { ...p.toObject(), verified: true, pending: false } : p);
+    user.verificationCodes = user.verificationCodes.filter(vc => !(vc.value === phone && vc.code === code && vc.type === 'phone'));
+    await user.save();
+    res.json({ message: 'Phone verified' });
+  } catch (err) {
+    console.error('Failed to verify phone:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -368,43 +460,38 @@ router.delete('/me/email', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /verify-phone
-router.post("/verify-phone", async (req, res) => {
+// Add after other /me endpoints
+router.post('/me/unlink-social', authenticateToken, async (req, res) => {
   try {
-    const { phone, code } = req.body;
-    const user = await User.findOne({ 'phones.value': phone });
-    if (!user) return res.status(404).json({ message: "User not found" });
-    const vCode = user.verificationCodes.find(vc => vc.value === phone && vc.code === code && vc.type === 'phone');
-    if (!vCode || vCode.expiresAt < new Date()) {
-      return res.status(400).json({ message: "Invalid or expired code" });
+    const { provider } = req.body;
+    if (!provider || !['google', 'github', 'microsoft'].includes(provider)) {
+      return res.status(400).json({ message: 'Invalid provider' });
     }
-    // Mark phone as verified
-    user.phones = user.phones.map(p => p.value === phone ? { ...p.toObject(), verified: true, pending: false } : p);
-    user.verificationCodes = user.verificationCodes.filter(vc => !(vc.value === phone && vc.code === code && vc.type === 'phone'));
-    await user.save();
-    res.json({ message: "Phone verified" });
-  } catch (err) {
-    console.error("Failed to verify phone:", err);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-// POST /resend-phone-verification
-router.post('/resend-phone-verification', authenticateToken, async (req, res) => {
-  try {
-    const { phone } = req.body;
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    const phoneObj = user.phones.find(p => p.value === phone && !p.verified);
-    if (!phoneObj) return res.status(400).json({ message: 'Phone not found or already verified' });
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    user.verificationCodes.push({ value: phone, code, expiresAt, type: 'phone' });
-    await sendSMS(phone, `Your Incident Flow verification code is: ${code}`);
+    // Remove from socialAccounts array
+    user.socialAccounts = (user.socialAccounts || []).filter(acc => acc.provider !== provider);
+    // Remove provider-specific fields if present
+    if (provider === 'google') {
+      user.googleId = null;
+      user.markModified('googleId');
+    }
+    if (provider === 'github') {
+      user.githubId = null;
+      user.markModified('githubId');
+    }
+    if (provider === 'microsoft') {
+      user.microsoftId = null;
+      user.markModified('microsoftId');
+    }
+    // If no social accounts left, set ssoProvider to 'local'
+    if (!user.socialAccounts.length) user.ssoProvider = 'local';
     await user.save();
-    res.json({ message: 'Verification SMS resent' });
+    const userObj = user.toObject();
+    delete userObj.password;
+    res.json({ message: `${provider} account unlinked`, user: userObj });
   } catch (err) {
-    console.error('Failed to resend verification SMS:', err);
+    console.error('Failed to unlink social account:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -432,5 +519,7 @@ router.get("/audit-logs", authenticateToken, authorizeAdmin, async (req, res) =>
     res.status(500).json({ message: "Failed to fetch user audit logs" });
   }
 });
+
+router.get('/logs/recent', authenticateToken, getRecentLogs);
 
 module.exports = router;
