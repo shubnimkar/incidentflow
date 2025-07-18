@@ -277,6 +277,46 @@ router.put("/me", authenticateToken, async (req, res) => {
   }
 });
 
+// POST /me/avatar - Upload or change avatar, delete old avatar from S3
+router.post('/me/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file || !req.file.location) {
+      return res.status(400).json({ message: 'No avatar uploaded' });
+    }
+    // Find the user and get the old avatar URL
+    const user = await User.findById(req.user._id);
+    const oldAvatarUrl = user.avatarUrl;
+    // Update the user's avatarUrl using findByIdAndUpdate to avoid password validation
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatarUrl: req.file.location },
+      { new: true }
+    );
+    // Delete the old avatar from S3 if it exists
+    if (oldAvatarUrl) {
+      const s3 = new AWS.S3({
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        region: process.env.AWS_REGION,
+      });
+      // Extract the S3 key from the URL
+      const key = oldAvatarUrl.split('.amazonaws.com/')[1];
+      if (key) {
+        s3.deleteObject({
+          Bucket: process.env.S3_BUCKET,
+          Key: key,
+        }, (err, data) => {
+          if (err) console.error('Failed to delete old avatar from S3:', err);
+        });
+      }
+    }
+    res.json({ message: 'Avatar updated', user: updatedUser.toObject() });
+  } catch (err) {
+    console.error('Avatar upload error:', err); // <--- Added for debugging
+    res.status(500).json({ message: 'Failed to upload avatar' });
+  }
+});
+
 // ✅ Verify email endpoint
 router.post("/verify-email", async (req, res) => {
   try {
@@ -501,7 +541,11 @@ router.get("/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("name email phones avatarUrl country city role title bio timezone createdAt");
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
+    const userObj = user.toObject();
+    if (userObj.avatarUrl) {
+      userObj.avatarUrl = getPresignedUrl(userObj.avatarUrl);
+    }
+    res.json(userObj);
   } catch (err) {
     res.status(404).json({ message: "User not found" });
   }
