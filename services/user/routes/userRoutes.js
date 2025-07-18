@@ -496,6 +496,17 @@ router.post('/me/unlink-social', authenticateToken, async (req, res) => {
   }
 });
 
+// Public: Get user by ID (for public profile)
+router.get("/users/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("name email phones avatarUrl country city role title bio timezone createdAt");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(404).json({ message: "User not found" });
+  }
+});
+
 // Admin-protected: Get user audit logs
 router.get("/audit-logs", authenticateToken, authorizeAdmin, async (req, res) => {
   try {
