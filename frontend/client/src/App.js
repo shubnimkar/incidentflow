@@ -21,6 +21,7 @@ import UserProfile from "./pages/UserProfile";
 import ClosedCases from "./pages/ClosedCases";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import PublicProfile from "./pages/PublicProfile";
 
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/auth-callback" element={<AuthCallback />} />
+          <Route path="/profile/:id" element={<PublicProfile />} />
           
 
           {/* Protected Layout Wrapper */}
