@@ -17,6 +17,7 @@ import debounce from 'lodash.debounce';
 import { useLocation } from 'react-router-dom';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import 'react-tabs/style/react-tabs.css';
+import getCroppedImg from '../utils/cropImage'; // Utility to get cropped image blob
 
 const COUNTRY_CODES = [
   { code: '+1', label: '🇺🇸 US' },
@@ -259,7 +260,7 @@ const UserProfile = () => {
   const [recentActivity, setRecentActivity] = useState([]);
   const [status, setStatus] = useState('available');
   const [editStatus, setEditStatus] = useState(STATUS_OPTIONS[0]);
-  const { token, user: authUser } = useAuth() || {};
+  const { token, user: authUser, setUser: setAuthUser } = useAuth() || {};
   // Helper to check if a provider is linked
   const isLinked = (provider) => {
     if (!user) return false;
@@ -467,6 +468,7 @@ const UserProfile = () => {
     try {
       const res = await userApi.delete('/me/avatar');
       setUser(res.data.user);
+      setAuthUser(res.data.user); // <-- Update global user state
       setCacheBuster(Date.now()); // Update cacheBuster after delete
       toast.success('Avatar deleted');
     } catch (err) {
@@ -496,12 +498,39 @@ const UserProfile = () => {
     }
   };
 
-  // Avatar upload handler (placeholder)
+  // Handle avatar file selection
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // TODO: Implement actual upload logic
-      toast.success('Avatar selected: ' + file.name);
+      setSelectedImage(URL.createObjectURL(file));
+      setCropModalOpen(true);
+    }
+  };
+
+  // On crop complete
+  const onCropComplete = (croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  // Upload cropped avatar
+  const handleUploadCroppedAvatar = async () => {
+    setAvatarUploading(true);
+    try {
+      const croppedBlob = await getCroppedImg(selectedImage, croppedAreaPixels);
+      const formData = new FormData();
+      formData.append('avatar', croppedBlob, 'avatar.jpg');
+      const avatarRes = await userApi.post('/me/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setUser(avatarRes.data.user);
+      setAuthUser(avatarRes.data.user); // <-- Update global user state
+      setCropModalOpen(false);
+      setSelectedImage(null);
+      toast.success('Avatar updated!');
+    } catch (err) {
+      toast.error('Failed to upload avatar');
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -598,7 +627,7 @@ const UserProfile = () => {
         setShowPhoneVerificationUI(false);
         toast.error(err.response.data.message);
       } else {
-        toast.error(err.response?.data?.message || "Failed to update profile");
+      toast.error(err.response?.data?.message || "Failed to update profile");
       }
     }
   };
@@ -815,11 +844,11 @@ const UserProfile = () => {
       {/* Header Card */}
       <div className="w-full max-w-3xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 p-8 flex flex-col md:flex-row items-center gap-8 mb-8">
         <div className="relative">
-          <img
-            src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=0D8ABC&color=fff&size=128`}
+            <img
+              src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=0D8ABC&color=fff&size=128`}
             className="w-32 h-32 rounded-full border-4 border-blue-100 shadow object-cover"
-            alt="Avatar"
-          />
+              alt="Avatar"
+            />
           {/* Status indicator */}
           <span className={`absolute bottom-2 right-2 w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 ${STATUS_COLORS[status] || 'bg-green-500'}`}></span>
           {/* QR Code Button (top-right of avatar) */}
@@ -831,6 +860,14 @@ const UserProfile = () => {
           >
             <FaQrcode className="text-xl text-blue-600" />
           </button>
+          {/* Hidden file input for avatar */}
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+            style={{ display: 'none' }}
+              onChange={handleAvatarChange}
+          />
         </div>
         <div className="flex-1 flex flex-col gap-2 items-center md:items-start">
           <div className="flex items-center gap-3">
@@ -842,15 +879,15 @@ const UserProfile = () => {
             <span className="inline-block px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-semibold">{STATUS_OPTIONS.find(opt => opt.value === status)?.label || 'Available'}</span>
           </div>
           <div className="flex gap-2 mt-2">
-            <button
+              <button
               className="px-4 py-1 rounded bg-yellow-100 text-yellow-800 font-semibold hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              aria-label="Edit profile"
-              type="button"
-              onClick={handleEditProfile}
-              disabled={editMode}
-            >
-              Edit Profile
-            </button>
+                aria-label="Edit profile"
+                type="button"
+                onClick={handleEditProfile}
+                disabled={editMode}
+              >
+                Edit Profile
+              </button>
             <button
               className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
               onClick={() => fileInputRef.current && fileInputRef.current.click()}
@@ -858,10 +895,62 @@ const UserProfile = () => {
               type="button"
             >
               Change Avatar
-            </button>
+              </button>
+            </div>
+          </div>
+            </div>
+      {/* Avatar Crop Modal */}
+      {cropModalOpen && (
+        <Modal
+          isOpen={cropModalOpen}
+          onRequestClose={() => setCropModalOpen(false)}
+          className="fixed inset-0 flex items-center justify-center z-50"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-40 z-40"
+          ariaHideApp={false}
+        >
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-8 max-w-md w-full flex flex-col items-center">
+            <h2 className="text-lg font-bold mb-4">Crop Avatar</h2>
+            <div className="relative w-64 h-64 bg-gray-100 rounded-lg overflow-hidden mb-4">
+              <Cropper
+                image={selectedImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+            <div className="flex gap-4 mb-4 w-full justify-center">
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.01}
+                value={zoom}
+                onChange={e => setZoom(Number(e.target.value))}
+                className="w-48"
+              />
+            </div>
+            <div className="flex gap-4">
+              <button
+                className="px-4 py-1 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300"
+                onClick={() => setCropModalOpen(false)}
+                disabled={avatarUploading}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700"
+                onClick={handleUploadCroppedAvatar}
+                disabled={avatarUploading}
+              >
+                {avatarUploading ? 'Uploading...' : 'Save Avatar'}
+              </button>
           </div>
         </div>
-      </div>
+        </Modal>
+      )}
       {/* QR Code Modal */}
       {qrModalOpen && (
         <Modal
@@ -905,12 +994,12 @@ const UserProfile = () => {
                 <div className="flex items-center gap-2">
                   <FaUser className="text-gray-400" />
                   <span className="font-semibold">Full Name:</span>
-                  {editMode ? (
+          {editMode ? (
                     <input className="border rounded px-2 py-1 ml-2 flex-1" value={editName} onChange={e => setEditName(e.target.value)} />
                   ) : (
                     <span className="ml-2">{user?.name || 'N/A'}</span>
                   )}
-                </div>
+              </div>
                 {/* Title */}
                 <div className="flex items-center gap-2">
                   <FaEdit className="text-gray-400" />
@@ -920,7 +1009,7 @@ const UserProfile = () => {
                   ) : (
                     <span className="ml-2">{user?.title || 'N/A'}</span>
                   )}
-                </div>
+              </div>
                 {/* Bio */}
                 <div className="flex items-center gap-2 md:col-span-2">
                   <FaEdit className="text-gray-400" />
@@ -930,7 +1019,7 @@ const UserProfile = () => {
                   ) : (
                     <span className="ml-2">{user?.bio || 'N/A'}</span>
                   )}
-                </div>
+              </div>
                 {/* Email */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <FaEnvelope className="text-gray-400" />
@@ -968,7 +1057,7 @@ const UserProfile = () => {
                             Verify Code
                           </button>
                           {emailVerifyError && <span className="text-xs text-red-500">{emailVerifyError}</span>}
-                        </div>
+              </div>
                       );
                     }
                   })()}
@@ -979,16 +1068,16 @@ const UserProfile = () => {
                   <span className="font-semibold">Phone:</span>
                   {editMode ? (
                     <>
-                      <select
+                <select
                         className="border rounded px-2 py-0.5 text-xs w-20"
                         value={selectedCountryCode}
                         onChange={e => setSelectedCountryCode(e.target.value)}
-                      >
-                        {COUNTRY_CODES.map(c => (
-                          <option key={c.code} value={c.code}>{c.label} {c.code}</option>
-                        ))}
-                      </select>
-                      <input
+                >
+                  {COUNTRY_CODES.map(c => (
+                    <option key={c.code} value={c.code}>{c.label} {c.code}</option>
+                  ))}
+                </select>
+                <input
                         className="border rounded px-2 py-0.5 text-xs w-32"
                         placeholder="Enter mobile number"
                         value={localPhone}
@@ -1034,7 +1123,7 @@ const UserProfile = () => {
                         Verify Code
                       </button>
                       {phoneVerifyError && <span className="text-xs text-red-500">{phoneVerifyError}</span>}
-                    </div>
+              </div>
                   ) : null}
                 </div>
                 {/* Status */}
@@ -1059,55 +1148,55 @@ const UserProfile = () => {
                   <span className="font-semibold">Timezone:</span>
                   {editMode ? (
                     <select className="border rounded px-2 py-1 ml-2 flex-1" value={editTimezone} onChange={e => setEditTimezone(e.target.value)}>
-                      {timeZones.map(tz => {
-                        const parts = tz.split('/');
-                        const label = parts.length > 1 ? `${tz} (${parts[1].replace('_', ' ')})` : tz;
-                        return (
-                          <option key={tz} value={tz}>{label}</option>
-                        );
-                      })}
-                    </select>
+                  {timeZones.map(tz => {
+                    const parts = tz.split('/');
+                    const label = parts.length > 1 ? `${tz} (${parts[1].replace('_', ' ')})` : tz;
+                    return (
+                      <option key={tz} value={tz}>{label}</option>
+                    );
+                  })}
+                </select>
                   ) : (
                     <span className="ml-2">{user?.timezone || 'N/A'}</span>
                   )}
-                </div>
+              </div>
                 {/* Country */}
                 <div className="flex items-center gap-2">
                   <FaGlobe className="text-gray-400" />
                   <span className="font-semibold">Country:</span>
                   {editMode ? (
-                    <Select
-                      options={countryOptions}
-                      value={editCountry}
-                      onChange={option => setEditCountry(option)}
-                      placeholder="Select country"
+                <Select
+                  options={countryOptions}
+                  value={editCountry}
+                  onChange={option => setEditCountry(option)}
+                  placeholder="Select country"
                       className="w-48 ml-2"
-                    />
+                />
                   ) : (
                     <span className="ml-2">{user?.country || 'N/A'}</span>
                   )}
-                </div>
+              </div>
                 {/* City */}
                 <div className="flex items-center gap-2">
                   <FaMapMarkerAlt className="text-gray-400" />
                   <span className="font-semibold">City:</span>
                   {editMode ? (
-                    <input
+                <input
                       className="border rounded px-2 py-1 ml-2 flex-1"
-                      value={editCity}
-                      onChange={e => setEditCity(e.target.value)}
-                      placeholder="Enter city"
-                    />
+                  value={editCity}
+                  onChange={e => setEditCity(e.target.value)}
+                  placeholder="Enter city"
+                />
                   ) : (
                     <span className="ml-2">{user?.city || 'N/A'}</span>
                   )}
-                </div>
+              </div>
               </div>
               {editMode && (
                 <div className="flex gap-2 mt-6 justify-end">
-                  <button className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700" onClick={handleSaveEdit} type="button">Save</button>
-                  <button className="px-4 py-1 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300" onClick={handleCancelEdit} type="button">Cancel</button>
-                </div>
+                <button className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700" onClick={handleSaveEdit} type="button">Save</button>
+                <button className="px-4 py-1 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300" onClick={handleCancelEdit} type="button">Cancel</button>
+              </div>
               )}
             </div>
             {/* Add after the main profile info grid in the Profile Tab */}
@@ -1123,39 +1212,39 @@ const UserProfile = () => {
                   ) : (
                     <span className="ml-2 text-gray-400">No teams</span>
                   )}
-                </div>
+              </div>
                 {/* Role */}
                 <div className="flex items-center gap-2">
                   <FaUserShield className="text-gray-400" />
                   <span className="font-semibold">Role:</span>
                   <span className="ml-2">{user?.role || 'N/A'}</span>
-                </div>
+              </div>
                 {/* Account Created */}
                 <div className="flex items-center gap-2">
                   <FaCalendarPlus className="text-gray-400" />
                   <span className="font-semibold">Account Created:</span>
                   <span className="ml-2">{user?.createdAt ? new Date(user.createdAt).toLocaleString() : 'N/A'}</span>
-                </div>
+              </div>
                 {/* Last Login */}
                 <div className="flex items-center gap-2">
                   <FaSignInAlt className="text-gray-400" />
                   <span className="font-semibold">Last Login:</span>
                   <span className="ml-2">{user?.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'N/A'}</span>
-                </div>
+              </div>
                 {/* Assigned Cases */}
                 <div className="flex items-center gap-2">
                   <FaTasks className="text-gray-400" />
                   <span className="font-semibold">Assigned Cases:</span>
                   <span className="ml-2">{assignedCases.length}</span>
-                </div>
+              </div>
                 {/* Efficiency */}
                 <div className="flex items-center gap-2">
                   <FaChartLine className="text-gray-400" />
                   <span className="font-semibold">Efficiency:</span>
                   <span className="ml-2">{assignedCases.length > 0 ? `${Math.round((assignedCases.filter(c => c.status === 'resolved').length / assignedCases.length) * 100)}%` : 'N/A'}</span>
-                </div>
               </div>
-            </div>
+              </div>
+              </div>
           </TabPanel>
           {/* Security Tab */}
           <TabPanel>
@@ -1227,8 +1316,8 @@ const UserProfile = () => {
                       >
                         Link
                       </a>
-                    )}
-                  </div>
+                )}
+              </div>
                   {/* Microsoft */}
                   <div className="flex items-center gap-2">
                     <FaMicrosoft className="text-blue-700 text-xl" />
@@ -1250,8 +1339,8 @@ const UserProfile = () => {
                       >
                         Link
                       </a>
-                    )}
-                  </div>
+                )}
+              </div>
                   {/* GitHub */}
                   <div className="flex items-center gap-2">
                     <FaGithub className="text-gray-800 text-xl" />
@@ -1273,31 +1362,31 @@ const UserProfile = () => {
                       >
                         Link
                       </a>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
+              </div>
+        </div>
               {/* 2FA (placeholder) */}
               <div>
                 <h4 className="font-semibold mb-2">Two-Factor Authentication</h4>
                 <div className="text-gray-500">(2FA setup coming soon...)</div>
-              </div>
+        </div>
             </div>
           </TabPanel>
           {/* Activity Tab */}
           <TabPanel>
             <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FaClock /> Recent Activity</h3>
-              {recentActivity.length > 0 ? (
-                <ul className="list-disc ml-6 space-y-1">
-                  {recentActivity.map(log => (
-                    <li key={log._id}>{log.action} - {new Date(log.timestamp).toLocaleString()}</li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-gray-400">No recent activity.</div>
-              )}
-            </div>
+          {recentActivity.length > 0 ? (
+            <ul className="list-disc ml-6 space-y-1">
+              {recentActivity.map(log => (
+                <li key={log._id}>{log.action} - {new Date(log.timestamp).toLocaleString()}</li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-gray-400">No recent activity.</div>
+          )}
+        </div>
           </TabPanel>
         </Tabs>
       </div>
