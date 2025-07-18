@@ -3,7 +3,7 @@ import { userApi } from "../services/api";
 import { toast } from "react-hot-toast";
 import Cropper from 'react-easy-crop';
 import Modal from 'react-modal';
-import { FaCamera, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaPlus, FaEye, FaEyeSlash, FaUser, FaGoogle, FaGithub, FaMicrosoft, FaEnvelope, FaPhone, FaClock, FaGlobe, FaMapMarkerAlt, FaUsers, FaUserShield, FaCalendarPlus, FaSignInAlt, FaTasks, FaChartLine } from 'react-icons/fa';
+import { FaCamera, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaPlus, FaEye, FaEyeSlash, FaUser, FaGoogle, FaGithub, FaMicrosoft, FaEnvelope, FaPhone, FaClock, FaGlobe, FaMapMarkerAlt, FaUsers, FaUserShield, FaCalendarPlus, FaSignInAlt, FaTasks, FaChartLine, FaQrcode } from 'react-icons/fa';
 import timeZones from './timeZones'; // Assume a timeZones.js file exports an array of tz strings
 import axios from 'axios';
 import { incidentApi } from '../services/api';
@@ -778,6 +778,11 @@ const UserProfile = () => {
     }
   };
 
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  // Helper to get frontend URL
+  const frontendUrl = process.env.REACT_APP_FRONTEND_URL || window.location.origin;
+  const profileUrl = user ? `${frontendUrl}/profile/${user._id}` : '';
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow p-8 animate-pulse">
@@ -817,6 +822,15 @@ const UserProfile = () => {
           />
           {/* Status indicator */}
           <span className={`absolute bottom-2 right-2 w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 ${STATUS_COLORS[status] || 'bg-green-500'}`}></span>
+          {/* QR Code Button (top-right of avatar) */}
+          <button
+            className="absolute top-2 right-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-2 shadow hover:bg-gray-100 dark:hover:bg-gray-700 z-10"
+            title="Show QR Code"
+            onClick={() => setQrModalOpen(true)}
+            type="button"
+          >
+            <FaQrcode className="text-xl text-blue-600" />
+          </button>
         </div>
         <div className="flex-1 flex flex-col gap-2 items-center md:items-start">
           <div className="flex items-center gap-3">
@@ -848,6 +862,32 @@ const UserProfile = () => {
           </div>
         </div>
       </div>
+      {/* QR Code Modal */}
+      {qrModalOpen && (
+        <Modal
+          isOpen={qrModalOpen}
+          onRequestClose={() => setQrModalOpen(false)}
+          className="fixed inset-0 flex items-center justify-center z-50"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-40 z-40"
+          ariaHideApp={false}
+        >
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-8 max-w-md w-full flex flex-col items-center">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <FaQrcode className="text-blue-600" />
+              Profile QR Code
+            </h2>
+            <div className="mb-4">
+              <QRCodeSVG value={profileUrl} size={192} />
+            </div>
+            <button
+              className="mt-2 px-4 py-1 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300"
+              onClick={() => setQrModalOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+      )}
       {/* Tabs */}
       <div className="w-full max-w-3xl mx-auto">
         <Tabs>

@@ -497,13 +497,32 @@ router.post('/me/unlink-social', authenticateToken, async (req, res) => {
 });
 
 // Public: Get user by ID (for public profile)
-router.get("/users/:id", async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("name email phones avatarUrl country city role title bio timezone createdAt");
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (err) {
     res.status(404).json({ message: "User not found" });
+  }
+});
+
+// PATCH /:id/role - Admin only: update user role
+router.patch("/:id/role", authenticateToken, authorizeAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!role || !["admin", "responder"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true, runValidators: true }
+    ).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update role" });
   }
 });
 
