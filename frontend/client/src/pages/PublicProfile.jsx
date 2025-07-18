@@ -26,7 +26,7 @@ const PublicProfile = () => {
       setLoading(true);
       setError("");
       try {
-        const res = await userApi.get(`/users/${id}`);
+        const res = await userApi.get(`/${id}`);
         setUser(res.data);
       } catch (err) {
         setError("User not found");
