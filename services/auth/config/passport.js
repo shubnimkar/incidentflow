@@ -6,60 +6,92 @@ const MicrosoftStrategy = require('passport-microsoft').Strategy;
 const User = require('../models/User');
 const sendEmail = require("../utils/sendEmail");
 const emailTemplates = require("../utils/emailTemplates");
+const jwt = require('jsonwebtoken');
+
+// Helper to extract user from JWT in query param (for stateless linking)
+const getUserFromToken = async (req) => {
+  const token = req.query.token || req.headers.authorization?.split(' ')[1];
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return await User.findById(decoded.id);
+  } catch {
+    return null;
+  }
+};
 
 // Google OAuth Strategy
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/api/auth/google/callback"
-  }, async (accessToken, refreshToken, profile, done) => {
+    callbackURL: "/api/auth/google/callback",
+    passReqToCallback: true,
+  }, async (req, accessToken, refreshToken, profile, done) => {
     try {
-      let user = await User.findOne({ googleId: profile.id });
-      if (user) {
-        return done(null, user);
-      }
-      // Check if user exists with same email
-      user = await User.findOne({ email: profile.emails[0].value });
-      if (user) {
-        // If user already has a different SSO provider or local, do not link automatically
-        if (user.ssoProvider && user.ssoProvider !== 'google') {
-          return done({ message: 'account_exists' }, null);
+      let linkState = {};
+      if (req.query && req.query.state) {
+        try {
+          linkState = JSON.parse(decodeURIComponent(req.query.state));
+        } catch (e) {
+          linkState = {};
         }
-        // Link existing account to Google
-        user.googleId = profile.id;
-        user.ssoProvider = 'google';
-        user.isEmailVerified = true;
-        // Only set name/avatar if missing
-        if (!user.name && profile.displayName) user.name = profile.displayName;
-        if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
-        console.log('[Google SSO] Linking to existing user:', { id: user._id, name: user.name, avatarUrl: user.avatarUrl });
-        await user.save();
-        return done(null, user);
       }
-      // Create new user
-      const newUser = new User({
-        googleId: profile.id,
-        name: profile.displayName,
-        email: profile.emails[0].value,
-        avatarUrl: profile.photos[0]?.value || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=random`,
-        ssoProvider: 'google',
-        isEmailVerified: true,
-        role: 'responder'
-      });
-      console.log('[Google SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
-      await newUser.save();
-      // Send welcome email to new SSO user
-      try {
-        await sendEmail(
-          newUser.email,
-          "Welcome to IncidentFlow!",
-          emailTemplates.welcomeEmail(newUser.name)
-        );
-      } catch (err) {
-        console.error("[Google SSO] Failed to send welcome email:", err);
+      if (linkState.link) {
+        let linkingUser = req.user;
+        if (!linkingUser && linkState.token) {
+          linkingUser = await getUserFromToken({ query: { token: linkState.token } });
+        }
+        if (linkingUser) {
+          linkingUser.googleId = profile.id;
+          linkingUser.ssoProvider = 'google';
+          linkingUser.isEmailVerified = true;
+          if (!linkingUser.socialAccounts) linkingUser.socialAccounts = [];
+          if (!linkingUser.socialAccounts.find(acc => acc.provider === 'google')) {
+            linkingUser.socialAccounts.push({ provider: 'google', id: profile.id, email: profile.emails[0].value });
+          }
+          await linkingUser.save();
+          return done(null, linkingUser, { linked: true });
+        } else {
+        }
+      } else {
+        try {
+          let user = await User.findOne({ googleId: profile.id });
+          if (user) {
+            user.lastLogin = Date.now();
+            await user.save();
+            return done(null, user);
+          }
+          // Check if user exists with same email
+          user = await User.findOne({ email: profile.emails[0].value });
+          if (user) {
+            if (user.ssoProvider && user.ssoProvider !== 'google') {
+              return done({ message: 'account_exists' }, null);
+            }
+            user.googleId = profile.id;
+            user.ssoProvider = 'google';
+            user.isEmailVerified = true;
+            if (!user.name && profile.displayName) user.name = profile.displayName;
+            if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
+            await user.save();
+            return done(null, user);
+          }
+          // Create new user
+          const newUser = new User({
+            googleId: profile.id,
+            name: profile.displayName,
+            email: profile.emails[0].value,
+            avatarUrl: profile.photos[0]?.value || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=random`,
+            ssoProvider: 'google',
+            isEmailVerified: true,
+            role: 'responder'
+          });
+          await newUser.save();
+          return done(null, newUser);
+        } catch (err) {
+          return done(err);
+        }
       }
-      return done(null, newUser);
     } catch (error) {
       return done(error, null);
     }
@@ -74,50 +106,71 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
   passport.use(new GitHubStrategy({
     clientID: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    callbackURL: "/api/auth/github/callback"
-  }, async (accessToken, refreshToken, profile, done) => {
+    callbackURL: "/api/auth/github/callback",
+    passReqToCallback: true,
+  }, async (req, accessToken, refreshToken, profile, done) => {
     try {
-      let user = await User.findOne({ githubId: profile.id });
-      if (user) {
-        return done(null, user);
-      }
-      user = await User.findOne({ email: profile.emails[0]?.value });
-      if (user) {
-        if (user.ssoProvider && user.ssoProvider !== 'github') {
-          return done({ message: 'account_exists' }, null);
+      let linkState = {};
+      if (req.query && req.query.state) {
+        try {
+          linkState = JSON.parse(decodeURIComponent(req.query.state));
+        } catch (e) {
+          linkState = {};
         }
-        user.githubId = profile.id;
-        user.ssoProvider = 'github';
-        user.isEmailVerified = true;
-        // Only set name/avatar if missing
-        if (!user.name && (profile.displayName || profile.username)) user.name = profile.displayName || profile.username;
-        if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
-        console.log('[GitHub SSO] Linking to existing user:', { id: user._id, name: user.name, avatarUrl: user.avatarUrl });
-        await user.save();
-        return done(null, user);
       }
-      const newUser = new User({
-        githubId: profile.id,
-        name: profile.displayName || profile.username,
-        email: profile.emails[0]?.value,
-        avatarUrl: profile.photos[0]?.value || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName || profile.username)}&background=random`,
-        ssoProvider: 'github',
-        isEmailVerified: true,
-        role: 'responder'
-      });
-      console.log('[GitHub SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
-      await newUser.save();
-      // Send welcome email to new SSO user
-      try {
-        await sendEmail(
-          newUser.email,
-          "Welcome to IncidentFlow!",
-          emailTemplates.welcomeEmail(newUser.name)
-        );
-      } catch (err) {
-        console.error("[GitHub SSO] Failed to send welcome email:", err);
+      if (linkState.link) {
+        let linkingUser = req.user;
+        if (!linkingUser && linkState.token) {
+          linkingUser = await getUserFromToken({ query: { token: linkState.token } });
+        }
+        if (linkingUser) {
+          linkingUser.githubId = profile.id;
+          linkingUser.ssoProvider = 'github';
+          linkingUser.isEmailVerified = true;
+          if (!linkingUser.socialAccounts) linkingUser.socialAccounts = [];
+          if (!linkingUser.socialAccounts.find(acc => acc.provider === 'github')) {
+            linkingUser.socialAccounts.push({ provider: 'github', id: profile.id, email: profile.emails[0]?.value });
+          }
+          await linkingUser.save();
+          return done(null, linkingUser, { linked: true });
+        } else {
+        }
+      } else {
+        try {
+          let user = await User.findOne({ githubId: profile.id });
+          if (user) {
+            user.lastLogin = Date.now();
+            await user.save();
+            return done(null, user);
+          }
+          user = await User.findOne({ email: profile.emails[0]?.value });
+          if (user) {
+            if (user.ssoProvider && user.ssoProvider !== 'github') {
+              return done({ message: 'account_exists' }, null);
+            }
+            user.githubId = profile.id;
+            user.ssoProvider = 'github';
+            user.isEmailVerified = true;
+            if (!user.name && (profile.displayName || profile.username)) user.name = profile.displayName || profile.username;
+            if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
+            await user.save();
+            return done(null, user);
+          }
+          const newUser = new User({
+            githubId: profile.id,
+            name: profile.displayName || profile.username,
+            email: profile.emails[0]?.value,
+            avatarUrl: profile.photos[0]?.value || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName || profile.username)}&background=random`,
+            ssoProvider: 'github',
+            isEmailVerified: true,
+            role: 'responder'
+          });
+          await newUser.save();
+          return done(null, newUser);
+        } catch (err) {
+          return done(err);
+        }
       }
-      return done(null, newUser);
     } catch (error) {
       return done(error, null);
     }
@@ -133,58 +186,74 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
     clientID: process.env.MICROSOFT_CLIENT_ID,
     clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
     callbackURL: "/api/auth/microsoft/callback",
-    scope: ['user.read', 'email']
-  }, async (accessToken, refreshToken, profile, done) => {
+    passReqToCallback: true,
+  }, async (req, accessToken, refreshToken, profile, done) => {
     try {
-      const email =
-        (profile.emails && profile.emails[0] && profile.emails[0].value) ||
-        (profile._json && profile._json.mail) ||
-        (profile._json && profile._json.userPrincipalName) ||
-        null;
-      if (!email) {
-        return done(new Error('No email found in Microsoft profile'), null);
-      }
-      let user = await User.findOne({ microsoftId: profile.id });
-      if (user) {
-        return done(null, user);
-      }
-      user = await User.findOne({ email });
-      if (user) {
-        if (user.ssoProvider && user.ssoProvider !== 'microsoft') {
-          return done({ message: 'account_exists' }, null);
+      let linkState = {};
+      if (req.query && req.query.state) {
+        try {
+          linkState = JSON.parse(decodeURIComponent(req.query.state));
+        } catch (e) {
+          linkState = {};
         }
-        user.microsoftId = profile.id;
-        user.ssoProvider = 'microsoft';
-        user.isEmailVerified = true;
-        // Only set name/avatar if missing
-        if (!user.name && profile.displayName) user.name = profile.displayName;
-        if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
-        console.log('[Microsoft SSO] Linking to existing user:', { id: user._id, name: user.name, avatarUrl: user.avatarUrl });
-        await user.save();
-        return done(null, user);
       }
-      const newUser = new User({
-        microsoftId: profile.id,
-        name: profile.displayName,
-        email,
-        avatarUrl: profile.photos && profile.photos[0]?.value || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=random`,
-        ssoProvider: 'microsoft',
-        isEmailVerified: true,
-        role: 'responder'
-      });
-      console.log('[Microsoft SSO] Creating new user:', { name: newUser.name, avatarUrl: newUser.avatarUrl });
-      await newUser.save();
-      // Send welcome email to new SSO user
-      try {
-        await sendEmail(
-          newUser.email,
-          "Welcome to IncidentFlow!",
-          emailTemplates.welcomeEmail(newUser.name)
-        );
-      } catch (err) {
-        console.error("[Microsoft SSO] Failed to send welcome email:", err);
+      if (linkState.link) {
+        let linkingUser = req.user;
+        if (!linkingUser && linkState.token) {
+          linkingUser = await getUserFromToken({ query: { token: linkState.token } });
+        }
+        if (linkingUser) {
+          linkingUser.microsoftId = profile.id;
+          linkingUser.ssoProvider = 'microsoft';
+          linkingUser.isEmailVerified = true;
+          if (!linkingUser.socialAccounts) linkingUser.socialAccounts = [];
+          if (!linkingUser.socialAccounts.find(acc => acc.provider === 'microsoft')) {
+            linkingUser.socialAccounts.push({ provider: 'microsoft', id: profile.id, email });
+          }
+          await linkingUser.save();
+          return done(null, linkingUser, { linked: true });
+        } else {
+        }
+      } else {
+        try {
+          const email = (profile.emails && profile.emails[0] && profile.emails[0].value) || (profile._json && profile._json.mail) || (profile._json && profile._json.userPrincipalName) || null;
+          if (!email) {
+            return done(new Error('No email found in Microsoft profile'), null);
+          }
+          let user = await User.findOne({ microsoftId: profile.id });
+          if (user) {
+            user.lastLogin = Date.now();
+            await user.save();
+            return done(null, user);
+          }
+          user = await User.findOne({ email });
+          if (user) {
+            if (user.ssoProvider && user.ssoProvider !== 'microsoft') {
+              return done({ message: 'account_exists' }, null);
+            }
+            user.microsoftId = profile.id;
+            user.ssoProvider = 'microsoft';
+            user.isEmailVerified = true;
+            if (!user.name && profile.displayName) user.name = profile.displayName;
+            if (!user.avatarUrl && profile.photos?.[0]?.value) user.avatarUrl = profile.photos[0].value;
+            await user.save();
+            return done(null, user);
+          }
+          const newUser = new User({
+            microsoftId: profile.id,
+            name: profile.displayName,
+            email,
+            avatarUrl: (profile.photos && profile.photos[0]?.value) || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=random`,
+            ssoProvider: 'microsoft',
+            isEmailVerified: true,
+            role: 'responder'
+          });
+          await newUser.save();
+          return done(null, newUser);
+        } catch (err) {
+          return done(err);
+        }
       }
-      return done(null, newUser);
     } catch (error) {
       return done(error, null);
     }

@@ -892,9 +892,9 @@ const IncidentDetails = () => {
                     {editMode ? (
                       <Select
                         className="w-full mt-1"
-                        value={users.find(u => u._id === editFields.assignedTo) ? { value: editFields.assignedTo, label: users.find(u => u._id === editFields.assignedTo)?.name || users.find(u => u._id === editFields.assignedTo)?.email } : null}
+                        value={users.find(u => u._id === editFields.assignedTo) ? { value: editFields.assignedTo, label: users.find(u => u._id === editFields.assignedTo)?.name ? `${users.find(u => u._id === editFields.assignedTo)?.name} (${users.find(u => u._id === editFields.assignedTo)?.email})` : users.find(u => u._id === editFields.assignedTo)?.email } : null}
                         onChange={opt => handleFieldChange('assignedTo', opt ? opt.value : '')}
-                        options={users.map(u => ({ value: u._id, label: u.name || u.email }))}
+                        options={users.map(u => ({ value: u._id, label: u.name ? `${u.name} (${u.email})` : u.email }))}
                         isClearable
                         isDisabled={saving || isClosed}
                       />
@@ -944,20 +944,14 @@ const IncidentDetails = () => {
                   <Select
                     isMulti
                     className="w-full"
-                    value={users.filter(u => editFields.responders.includes(u._id)).map(u => ({
-                      value: u._id,
-                      label: u.name || u.email
-                    }))}
+                    value={users.filter(u => editFields.responders.includes(u._id)).map(u => ({ value: u._id, label: u.name ? `${u.name} (${u.email})` : u.email }))}
                     onChange={options =>
                       handleFieldChange(
                         'responders',
                         options ? options.map(opt => opt.value) : []
                       )
                     }
-                    options={users.map(u => ({
-                      value: u._id,
-                      label: u.name || u.email
-                    }))}
+                    options={users.map(u => ({ value: u._id, label: u.name ? `${u.name} (${u.email})` : u.email }))}
                     isDisabled={saving || isClosed}
                     placeholder="Add additional responders..."
                   />

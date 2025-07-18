@@ -75,7 +75,7 @@ export default function CreateIncident() {
   ];
   const userOptions = users.map((u) => ({
     value: u._id,
-    label: u.name || u.email,
+    label: u.name ? `${u.name} (${u.email})` : u.email,
   }));
   const teamOptions = teams.map((t) => ({ value: t._id, label: t.name }));
 

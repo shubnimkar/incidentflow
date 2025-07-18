@@ -15,6 +15,31 @@ const userSchema = new mongoose.Schema({
   title: { type: String, default: '' },
   bio: { type: String, default: '' },
   timezone: { type: String, default: 'UTC' },
+  status: {
+    type: String,
+    enum: [
+      'available',
+      'busy',
+      'do not disturb',
+      'be right back',
+      'appear away',
+      'appear offline'
+    ],
+    default: 'available',
+  },
+  lastLogin: { type: Date },
+  city: { type: String },
+  country: { type: String },
+  googleId: { type: String, default: null },
+  githubId: { type: String, default: null },
+  microsoftId: { type: String, default: null },
+  socialAccounts: [
+    {
+      provider: { type: String },
+      id: { type: String },
+      email: { type: String },
+    }
+  ],
   phones: {
     type: [
       {
@@ -47,7 +72,7 @@ const userSchema = new mongoose.Schema({
     ],
     default: [],
   },
-});
+}, { timestamps: true });
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

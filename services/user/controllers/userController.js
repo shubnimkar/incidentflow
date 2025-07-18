@@ -32,6 +32,9 @@ exports.login = async (req, res) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
+  user.lastLogin = Date.now();
+  await user.save();
+
   const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: "1d",
   });
@@ -71,5 +74,16 @@ exports.deleteUser = async (req, res) => {
   } catch (err) {
     console.error("Delete user error:", err);
     res.status(500).json({ message: "Server error while deleting user." });
+  }
+};
+
+exports.getRecentLogs = async (req, res) => {
+  try {
+    const logs = await require('../models/UserAuditLog').find({ performedBy: req.user._id })
+      .sort({ timestamp: -1 })
+      .limit(5);
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch recent activity" });
   }
 };
