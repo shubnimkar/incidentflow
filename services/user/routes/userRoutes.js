@@ -401,6 +401,12 @@ router.delete("/me/avatar", authenticateToken, async (req, res) => {
 // ✅ Get all teams (authenticated only)
 router.get("/teams", authenticateToken, teamController.getTeams);
 
+// Add a member to a team
+router.post('/teams/:id/add-member', authenticateToken, authorizeAdmin, teamController.addMember);
+
+// Remove a member from a team
+router.post('/teams/:id/remove-member', authenticateToken, authorizeAdmin, teamController.removeMember);
+
 // Send email verification code
 router.post('/resend-email-verification', authenticateToken, async (req, res) => {
   try {
