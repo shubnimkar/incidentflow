@@ -70,7 +70,7 @@ const getPresignedUrl = (key) => {
     Key: s3Key,
     Expires: 60 * 5 // 5 minutes
   });
-  console.log('[DEBUG] Generating pre-signed URL:', { key, s3Key, presignedUrl });
+  // console.log('[DEBUG] Generating pre-signed URL:', { key, s3Key, presignedUrl }); // Removed debug log
   return presignedUrl;
 };
 
