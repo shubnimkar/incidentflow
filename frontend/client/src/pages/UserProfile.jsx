@@ -1,9 +1,11 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import { userApi } from "../services/api";
 import { toast } from "react-hot-toast";
 import Cropper from 'react-easy-crop';
 import Modal from 'react-modal';
-import { FaCamera, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaPlus, FaEye, FaEyeSlash, FaUser, FaGoogle, FaGithub, FaMicrosoft, FaEnvelope, FaPhone, FaClock, FaGlobe, FaMapMarkerAlt, FaUsers, FaUserShield, FaCalendarPlus, FaSignInAlt, FaTasks, FaChartLine, FaQrcode } from 'react-icons/fa';
+import { FaCamera, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaPlus, FaEye, FaEyeSlash, FaUser, FaGoogle, FaGithub, FaMicrosoft, FaEnvelope, FaPhone, FaClock, FaGlobe, FaMapMarkerAlt, FaUsers, FaUserShield, FaCalendarPlus, FaSignInAlt, FaTasks, FaChartLine, FaRegEdit } from 'react-icons/fa';
+import { FiShare2 } from 'react-icons/fi';
+import { FiTrendingUp, FiBriefcase, FiUsers, FiUser, FiMail, FiCheckCircle, FiPhone, FiClock, FiMapPin, FiCalendar, FiShield } from 'react-icons/fi';
 import timeZones from './timeZones'; // Assume a timeZones.js file exports an array of tz strings
 import axios from 'axios';
 import { incidentApi } from '../services/api';
@@ -18,6 +20,7 @@ import { useLocation } from 'react-router-dom';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import 'react-tabs/style/react-tabs.css';
 import getCroppedImg from '../utils/cropImage'; // Utility to get cropped image blob
+import Footer from '../components/Footer';
 
 const COUNTRY_CODES = [
   { code: '+1', label: '🇺🇸 US' },
@@ -177,12 +180,12 @@ const loadCityOptions = (inputValue, callback) => {
 const debouncedLoadCityOptions = debounce(loadCityOptions, 500);
 
 const STATUS_OPTIONS = [
-  { value: 'available', label: 'Available' },
-  { value: 'busy', label: 'Busy' },
-  { value: 'do not disturb', label: 'Do Not Disturb' },
-  { value: 'be right back', label: 'Be Right Back' },
-  { value: 'appear away', label: 'Appear Away' },
-  { value: 'appear offline', label: 'Appear Offline' },
+  { value: 'available', label: 'Available', color: 'bg-green-500' },
+  { value: 'busy', label: 'Busy', color: 'bg-red-500' },
+  { value: 'do not disturb', label: 'Do Not Disturb', color: 'bg-pink-500' },
+  { value: 'be right back', label: 'Be Right Back', color: 'bg-yellow-400' },
+  { value: 'appear away', label: 'Appear Away', color: 'bg-orange-400' },
+  { value: 'appear offline', label: 'Appear Offline', color: 'bg-gray-400' },
 ];
 
 const STATUS_COLORS = {
@@ -257,7 +260,6 @@ const UserProfile = () => {
   const [editCity, setEditCity] = useState('');
   const [editCountry, setEditCountry] = useState(null);
   const [editState, setEditState] = useState(null);
-  const [recentActivity, setRecentActivity] = useState([]);
   const [status, setStatus] = useState('available');
   const [editStatus, setEditStatus] = useState(STATUS_OPTIONS[0]);
   const { token, user: authUser, setUser: setAuthUser } = useAuth() || {};
@@ -340,7 +342,7 @@ const UserProfile = () => {
     }
   }, [user]);
 
-  useEffect(() => {
+  // Fetch teams (make top-level for event listener)
     const fetchTeams = async () => {
       try {
         const res = await userApi.get('/teams');
@@ -349,17 +351,7 @@ const UserProfile = () => {
         setTeams([]);
       }
     };
-    fetchTeams();
-  }, []);
-
-  useEffect(() => {
-    if (user && teams.length > 0) {
-      const myTeams = teams.filter(team => team.members.some(m => m._id === user._id));
-      setUserTeams(myTeams);
-    }
-  }, [user, teams]);
-
-  useEffect(() => {
+  // Fetch assigned cases (make top-level for event listener)
     const fetchAssignedCases = async () => {
       if (!user) return;
       try {
@@ -377,21 +369,31 @@ const UserProfile = () => {
         setAssignedCases([]);
       }
     };
+
+  useEffect(() => {
+    fetchTeams();
+  }, []);
+
+  useEffect(() => {
+    if (user && teams.length > 0) {
+      const myTeams = teams.filter(team => team.members.some(m => m._id === user._id));
+      setUserTeams(myTeams);
+    }
+  }, [user, teams]);
+
+  useEffect(() => {
     fetchAssignedCases();
   }, [user]);
 
   useEffect(() => {
-    const fetchRecentActivity = async () => {
-      if (!user) return;
-      try {
-        const res = await userApi.get('/logs/recent'); // Assuming a logs endpoint
-        setRecentActivity(res.data);
-      } catch (err) {
-        setRecentActivity([]);
-      }
+    // Listen for global profile data changes (e.g., team/case assignment)
+    const handleProfileDataChanged = () => {
+      fetchTeams();
+      fetchAssignedCases();
     };
-    fetchRecentActivity();
-  }, [user]);
+    window.addEventListener('profileDataChanged', handleProfileDataChanged);
+    return () => window.removeEventListener('profileDataChanged', handleProfileDataChanged);
+  }, []);
 
   const handleEdit = () => setEditMode(true);
   const handleCancel = () => {
@@ -812,6 +814,33 @@ const UserProfile = () => {
   const frontendUrl = process.env.REACT_APP_FRONTEND_URL || window.location.origin;
   const profileUrl = user ? `${frontendUrl}/profile/${user._id}` : '';
 
+  // Ensure all hooks are before any early return (if (loading) or if (error))
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const statusRef = useRef();
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (statusRef.current && !statusRef.current.contains(e.target)) {
+        setStatusDropdownOpen(false);
+      }
+    }
+    if (statusDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [statusDropdownOpen]);
+
+  const handleStatusChange = async (newStatus) => {
+    setStatus(newStatus);
+    setStatusDropdownOpen(false);
+    try {
+      await userApi.put('/me', { status: newStatus });
+      // Optionally refetch user/profile if needed
+    } catch (err) {
+      toast.error('Failed to update status');
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow p-8 animate-pulse">
@@ -840,65 +869,413 @@ const UserProfile = () => {
   console.log('countryOptions:', countryOptions);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 py-6">
-      {/* Header Card */}
-      <div className="w-full max-w-3xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 p-8 flex flex-col md:flex-row items-center gap-8 mb-8">
-        <div className="relative">
+    <div className="min-h-screen bg-gray-50 px-4 py-10 font-inter">
+      {/* Modern SaaS Profile Card */}
+      <div className="w-full max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-10 flex flex-col md:flex-row items-center md:items-start mb-10 border border-gray-100 gap-8 px-4 transition-shadow duration-200 hover:shadow-[0_0_24px_0_rgba(124,58,237,0.15)]">
+        {/* Avatar section (left) */}
+        <div className="relative mb-6 md:mb-0 md:mr-8 flex-shrink-0 w-36 h-36">
+          <div className="w-36 h-36 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400 p-1 shadow-lg">
             <img
-              src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=0D8ABC&color=fff&size=128`}
-            className="w-32 h-32 rounded-full border-4 border-blue-100 shadow object-cover"
+              src={user?.avatarUrl && user.avatarUrl.trim() !== '' ? user.avatarUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=0D8ABC&color=fff&size=128`}
+              className="w-full h-full rounded-full object-cover border-4 border-white"
               alt="Avatar"
             />
-          {/* Status indicator */}
-          <span className={`absolute bottom-2 right-2 w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 ${STATUS_COLORS[status] || 'bg-green-500'}`}></span>
-          {/* QR Code Button (top-right of avatar) */}
-          <button
-            className="absolute top-2 right-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-2 shadow hover:bg-gray-100 dark:hover:bg-gray-700 z-10"
-            title="Show QR Code"
-            onClick={() => setQrModalOpen(true)}
-            type="button"
-          >
-            <FaQrcode className="text-xl text-blue-600" />
-          </button>
-          {/* Hidden file input for avatar */}
+          </div>
+          {/* Status dot overlay */}
+          <span
+            className={`absolute bottom-2 right-2 w-8 h-8 rounded-full border-4 border-white shadow-lg
+              ${status === 'available' ? 'bg-green-500' : ''}
+              ${status === 'busy' ? 'bg-red-500' : ''}
+              ${status === 'do not disturb' ? 'bg-pink-500' : ''}
+              ${status === 'be right back' ? 'bg-yellow-400' : ''}
+              ${status === 'appear away' ? 'bg-orange-400' : ''}
+              ${status === 'appear offline' ? 'bg-gray-400' : ''}
+            `}
+            title={status}
+          />
+        </div>
+        {/* Details section (right) */}
+        <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
+          {/* Name with country flag */}
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-1 tracking-tight flex items-center justify-center md:justify-start">
+            {user?.name || 'User Name'}
+            {(() => {
+              // Try to map country code to flag
+              let code = '';
+              if (user?.country) {
+                if (typeof user.country === 'object' && user.country.value) {
+                  code = user.country.value;
+                } else if (typeof user.country === 'string') {
+                  const match = allCountries.find(c => c[1] === user.country);
+                  if (match) {
+                    code = match[1];
+                  }
+                }
+              }
+              let flag = '';
+              if (code && code.length === 2) {
+                flag = String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt()));
+              }
+              return flag ? <span className="ml-2 text-2xl align-middle">{flag}</span> : null;
+            })()}
+          </h2>
+          {/* Role and Status badges */}
+          <div className="flex flex-wrap items-center gap-2 mb-2 justify-center md:justify-start">
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm ${user?.role === 'admin' ? 'bg-[#1976d2] text-white' : 'bg-[#388e3c] text-white'}`}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'}</span>
+            {/* Status badge with dropdown */}
+            <div className="relative" ref={statusRef}>
+              <button
+                className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-[#1976d2] text-xs font-bold shadow-sm cursor-pointer"
+                onClick={() => setStatusDropdownOpen((open) => !open)}
+                type="button"
+              >
+                {STATUS_OPTIONS.find(opt => opt.value === status)?.label || 'Available'}
+                <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {statusDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+                  {STATUS_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      className={`w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2 ${status === opt.value ? 'font-bold text-[#1976d2]' : 'text-gray-700'}`}
+                      onClick={() => handleStatusChange(opt.value)}
+                    >
+                      <span className={`inline-block w-3 h-3 rounded-full ${opt.color}`}></span>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Bio */}
+          <div className="italic text-gray-500 mb-3 max-w-xl">{user?.bio || 'No bio provided.'}</div>
+          {/* Email */}
+          <div className="flex items-center gap-2 mb-2 text-gray-700 justify-center md:justify-start">
+            <FaEnvelope className="text-gray-400" />
+            <span>{user?.email}</span>
+          </div>
+          {/* Location: city, country name (no flag) */}
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-2 justify-center md:justify-start">
+            <FaMapMarkerAlt className="inline mr-1" />
+            <span>{user?.city || 'N/A'}, {(() => {
+              if (user?.country) {
+                if (typeof user.country === 'object' && user.country.label) {
+                  return user.country.label;
+                }
+                const match = allCountries.find(c => c[1] === user.country);
+                if (match) {
+                  return match[0];
+                }
+                return user.country;
+              }
+              return 'N/A';
+            })()}</span>
+        </div>
+          {/* Timezone */}
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-2 justify-center md:justify-start">
+            <FaClock className="inline mr-1" />
+            <span>{user?.timezone || 'N/A'}</span>
+          </div>
+          {/* Member since */}
+          <div className="flex items-center gap-2 mb-4 text-gray-500 justify-center md:justify-start">
+            <FaCalendarPlus className="text-gray-400" />
+            <span>Member since {user?.createdAt ? new Date(user?.createdAt).toLocaleDateString() : 'N/A'}</span>
+          </div>
+          <div className="flex gap-3 mt-2 justify-center md:justify-start">
+            <button
+              className="flex items-center gap-2 px-6 py-2 rounded-xl bg-gradient-to-r from-[#1976d2] to-[#1565c0] text-white font-bold shadow-lg hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              onClick={handleEditProfile}
+            >
+              <FaRegEdit className="text-lg" />
+              Edit Profile
+            </button>
+            <button
+              className="flex items-center justify-center px-4 py-2 rounded-xl bg-white border border-gray-200 text-[#1976d2] shadow hover:bg-blue-50 transition"
+              title="Change Avatar"
+              onClick={() => fileInputRef.current && fileInputRef.current.click()}
+              type="button"
+            >
+              <FaCamera className="text-xl" />
+            </button>
             <input
               type="file"
               accept="image/*"
               ref={fileInputRef}
             style={{ display: 'none' }}
               onChange={handleAvatarChange}
-          />
-        </div>
-        <div className="flex-1 flex flex-col gap-2 items-center md:items-start">
-          <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{user?.name || 'User Name'}</h2>
-            <span className="text-sm text-gray-600 dark:text-gray-300">{user?.email}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">{user?.role || 'User'}</span>
-            <span className="inline-block px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-semibold">{STATUS_OPTIONS.find(opt => opt.value === status)?.label || 'Available'}</span>
-          </div>
-          <div className="flex gap-2 mt-2">
+            />
               <button
-              className="px-4 py-1 rounded bg-yellow-100 text-yellow-800 font-semibold hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                aria-label="Edit profile"
+              className="flex items-center justify-center px-4 py-2 rounded-xl bg-white border border-gray-200 text-[#1976d2] shadow hover:bg-blue-50 transition"
+              title="Share Profile"
+              onClick={() => {
+                navigator.clipboard.writeText(profileUrl);
+                toast.success('Profile link copied!');
+              }}
                 type="button"
-                onClick={handleEditProfile}
-                disabled={editMode}
               >
-                Edit Profile
-              </button>
-            <button
-              className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              aria-label="Change profile picture"
-              type="button"
-            >
-              Change Avatar
+              <FiShare2 className="text-xl" />
               </button>
             </div>
           </div>
             </div>
+      {/* Stats/Skills Section (light theme) */}
+      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-6 mb-10">
+        {/* Assigned Cases Stat Card */}
+        <div className="relative bg-white rounded-2xl shadow border border-gray-100 p-6 flex flex-col justify-between min-h-[150px] w-full transition-shadow duration-200 hover:shadow-[0_0_24px_0_rgba(25,118,210,0.15)]">
+          <div className="flex justify-between items-start mb-2 w-full">
+            <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-50">
+              <FiBriefcase className="text-2xl" style={{ color: '#1976d2' }} />
+            </div>
+            <span className="text-sm font-semibold" style={{ color: '#1976d2' }}>+1</span>
+            </div>
+          <div className="flex-1 flex flex-col justify-end items-start">
+            <span className="text-3xl font-extrabold text-gray-900 mb-1">{assignedCases.length}</span>
+            <span className="text-gray-500 font-medium">Assigned Cases</span>
+          </div>
+        </div>
+        {/* Teams Stat Card */}
+        <div className="relative bg-white rounded-2xl shadow border border-gray-100 p-6 flex flex-col justify-between min-h-[150px] w-full transition-shadow duration-200 hover:shadow-[0_0_24px_0_rgba(56,142,60,0.15)]">
+          <div className="flex justify-between items-start mb-2 w-full">
+            <div className="w-10 h-10 flex items-center justify-center rounded-full bg-green-50">
+              <FiUsers className="text-2xl" style={{ color: '#388e3c' }} />
+            </div>
+            <span className="text-sm font-semibold" style={{ color: '#388e3c' }}>+0</span>
+          </div>
+          <div className="flex-1 flex flex-col justify-end items-start">
+            <span className="text-2xl font-extrabold text-gray-900 mb-1">{userTeams.length}</span>
+            <span className="text-gray-500 font-medium">Teams</span>
+          </div>
+        </div>
+        {/* Efficiency Stat Card Redesigned */}
+        <div className="relative bg-white rounded-2xl shadow border border-gray-100 p-6 flex flex-col justify-between min-h-[150px] w-full transition-shadow duration-200 hover:shadow-[0_0_24px_0_rgba(255,152,0,0.15)]">
+          <div className="flex justify-between items-start mb-2 w-full">
+            <div className="w-10 h-10 flex items-center justify-center rounded-full bg-orange-50">
+              <FiTrendingUp className="text-2xl" style={{ color: '#ff9800' }} />
+            </div>
+            <span className="text-sm font-semibold" style={{ color: '#ff9800' }}>+2%</span>
+          </div>
+          <div className="flex-1 flex flex-col justify-end items-start">
+            <span className="text-3xl font-extrabold text-gray-900 mb-1">{assignedCases.length > 0 ? `${Math.round((assignedCases.filter(c => c.status === 'resolved').length / assignedCases.length) * 100)}%` : 'N/A'}</span>
+            <span className="text-gray-500 font-medium">Performance</span>
+          </div>
+        </div>
+      </div>
+      {/* Details Section Polished */}
+      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Profile Information Card */}
+        <div className="bg-white rounded-2xl shadow border border-gray-100 p-12 transition-shadow duration-200 hover:shadow-[0_0_24px_0_rgba(25,118,210,0.10)]">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-50">
+              <FiUser className="text-3xl text-[#1976d2]" />
+            </div>
+            <h3 className="text-2xl font-extrabold text-[#1976d2]">Profile Information</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-y-6">
+            {/* Full Name */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiUser className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Full Name:</span>
+              {editMode ? (
+                <input className="border rounded px-2 py-1 w-full" value={editName} onChange={e => setEditName(e.target.value)} />
+              ) : (
+                <span className="text-gray-900">{user?.name}</span>
+              )}
+            </div>
+            {/* Title/Status */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiShield className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Title/Status:</span>
+              {editMode ? (
+                <input className="border rounded px-2 py-1 w-full" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+              ) : (
+                <span className="text-gray-900">{user?.title || 'N/A'}</span>
+              )}
+            </div>
+            {/* Email */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiMail className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Email:</span>
+              <span className="text-gray-900 flex items-center">{user?.email}{user?.emails?.[0]?.verified && (<FiCheckCircle className="text-green-500 ml-2" title="Verified" />)}</span>
+            </div>
+            {/* Phone */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiPhone className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Phone:</span>
+              {editMode ? (
+                <input className="border rounded px-2 py-1 w-full" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+              ) : (
+                <span className="text-gray-900 flex items-center">{user?.phones?.[0]?.value || 'N/A'}{user?.phones?.[0]?.verified && (<FiCheckCircle className="text-green-500 ml-2" title="Verified" />)}</span>
+              )}
+            </div>
+            {/* Location */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiMapPin className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Location:</span>
+              {editMode ? (
+                <div className="flex flex-col gap-2 w-full">
+                  <input className="border rounded px-2 py-1 w-full" value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City" />
+                  <div className="w-full">
+                    <Select
+                      classNamePrefix="react-select"
+                      className="w-full"
+                      options={countryOptions}
+                      value={countryOptions.find(opt => opt.value === editCountry) || null}
+                      onChange={option => setEditCountry(option.value)}
+                      placeholder="Country"
+                      isClearable
+                      menuPlacement="auto"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <span className="text-gray-900">{user?.city || 'N/A'}, {(() => {
+                  if (user?.country) {
+                    if (typeof user.country === 'object' && user.country.label) {
+                      return user.country.label;
+                    }
+                    const match = allCountries.find(c => c[1] === user.country);
+                    if (match) {
+                      return match[0];
+                    }
+                    return user.country;
+                  }
+                  return 'N/A';
+                })()}</span>
+              )}
+            </div>
+            {/* Timezone */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiClock className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Timezone:</span>
+              {editMode ? (
+                <select className="border rounded px-2 py-1 w-full" value={editTimezone} onChange={e => setEditTimezone(e.target.value)}>
+                  {timeZones.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+                </select>
+              ) : (
+                <span className="text-gray-900">{user?.timezone || 'N/A'}</span>
+              )}
+            </div>
+            {/* Member since */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2 border-t border-gray-100 pt-4 mt-2">
+              <FiCalendar className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Member since:</span>
+              <span className="text-gray-900">{user?.createdAt ? new Date(user?.createdAt).toLocaleDateString() : 'N/A'}</span>
+            </div>
+          </div>
+          {editMode && (
+            <div className="flex gap-4 mt-8 justify-end">
+              <button className="px-6 py-2 rounded bg-blue-600 text-white font-bold hover:bg-blue-700" onClick={handleSaveEdit}>Save</button>
+              <button className="px-6 py-2 rounded bg-gray-200 text-gray-700 font-bold hover:bg-gray-300" onClick={handleCancelEdit}>Cancel</button>
+            </div>
+          )}
+        </div>
+        {/* Account Details Card */}
+        <div className="bg-white rounded-2xl shadow border border-gray-100 p-12 transition-shadow duration-200 hover:shadow-[0_0_24px_0_rgba(25,118,210,0.10)]">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-50">
+              <FiUsers className="text-3xl text-[#1976d2]" />
+            </div>
+            <h3 className="text-2xl font-extrabold text-[#1976d2]">Account Details</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-y-6">
+            {/* Teams */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiUsers className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Teams:</span>
+              <span className="text-gray-900">{userTeams.map(t => t.name).join(', ') || 'No teams'}</span>
+            </div>
+            {/* Role (not editable) */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiShield className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Role:</span>
+              <span className="text-gray-900">{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'N/A'}</span>
+            </div>
+            {/* Account Created */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiCalendar className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Account Created:</span>
+              <span className="text-gray-900">{user?.createdAt ? new Date(user?.createdAt).toLocaleString() : 'N/A'}</span>
+            </div>
+            {/* Last Login */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiClock className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Last Login:</span>
+              <span className="text-gray-900">{user?.lastLogin ? new Date(user?.lastLogin).toLocaleString() : 'N/A'}</span>
+            </div>
+            {/* Assigned Cases */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2">
+              <FiBriefcase className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Assigned Cases:</span>
+              <span className="text-gray-900">{assignedCases.length}</span>
+            </div>
+            {/* Efficiency */}
+            <div className="grid grid-cols-[40px_140px_1fr] items-center gap-x-4 py-2 border-t border-gray-100 pt-4 mt-2">
+              <FiTrendingUp className="text-blue-400 text-xl" />
+              <span className="font-semibold text-gray-700">Efficiency:</span>
+              <span className="text-gray-900">{assignedCases.length > 0 ? `${Math.round((assignedCases.filter(c => c.status === 'resolved').length / assignedCases.length) * 100)}%` : 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+        {/* Account Linking Card */}
+        <div className="w-full max-w-6xl mx-auto mt-8">
+          <div className="bg-white rounded-2xl shadow border border-gray-100 p-8 transition-shadow duration-200 hover:shadow-[0_0_24px_0_rgba(25,118,210,0.10)]">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-50">
+                <FaLock className="text-2xl text-[#1976d2]" />
+              </div>
+              <h3 className="text-xl font-extrabold text-[#1976d2]">Account Linking</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Google */}
+              <div className="flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50">
+                <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-50 mb-1">
+                  <FaGoogle className="text-3xl text-red-500" />
+                </span>
+                <span className="font-semibold text-gray-700">Google</span>
+                {isLinked('google') ? (
+                  <>
+                    <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Linked</span>
+                    <button className="mt-2 px-4 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 transition" onClick={() => handleUnlinkSocial('google')} disabled={saving}>Unlink</button>
+                  </>
+                ) : (
+                  <a href={getLinkUrl('google')} className="mt-2 px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition">Link</a>
+                )}
+              </div>
+              {/* GitHub */}
+              <div className="flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50">
+                <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-1">
+                  <FaGithub className="text-3xl text-gray-800" />
+                </span>
+                <span className="font-semibold text-gray-700">GitHub</span>
+                {isLinked('github') ? (
+                  <>
+                    <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Linked</span>
+                    <button className="mt-2 px-4 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 transition" onClick={() => handleUnlinkSocial('github')} disabled={saving}>Unlink</button>
+                  </>
+                ) : (
+                  <a href={getLinkUrl('github')} className="mt-2 px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition">Link</a>
+                )}
+              </div>
+              {/* Microsoft */}
+              <div className="flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50">
+                <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 mb-1">
+                  <FaMicrosoft className="text-3xl text-blue-700" />
+                </span>
+                <span className="font-semibold text-gray-700">Microsoft</span>
+                {isLinked('microsoft') ? (
+                  <>
+                    <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Linked</span>
+                    <button className="mt-2 px-4 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 transition" onClick={() => handleUnlinkSocial('microsoft')} disabled={saving}>Unlink</button>
+                  </>
+                ) : (
+                  <a href={getLinkUrl('microsoft')} className="mt-2 px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition">Link</a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       {/* Avatar Crop Modal */}
       {cropModalOpen && (
         <Modal
@@ -947,449 +1324,11 @@ const UserProfile = () => {
               >
                 {avatarUploading ? 'Uploading...' : 'Save Avatar'}
               </button>
-          </div>
-        </div>
-        </Modal>
-      )}
-      {/* QR Code Modal */}
-      {qrModalOpen && (
-        <Modal
-          isOpen={qrModalOpen}
-          onRequestClose={() => setQrModalOpen(false)}
-          className="fixed inset-0 flex items-center justify-center z-50"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-40 z-40"
-          ariaHideApp={false}
-        >
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-8 max-w-md w-full flex flex-col items-center">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <FaQrcode className="text-blue-600" />
-              Profile QR Code
-            </h2>
-            <div className="mb-4">
-              <QRCodeSVG value={profileUrl} size={192} />
             </div>
-            <button
-              className="mt-2 px-4 py-1 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300"
-              onClick={() => setQrModalOpen(false)}
-            >
-              Close
-            </button>
           </div>
         </Modal>
       )}
-      {/* Tabs */}
-      <div className="w-full max-w-3xl mx-auto">
-        <Tabs>
-          <TabList>
-            <Tab>Profile</Tab>
-            <Tab>Security</Tab>
-            <Tab>Activity</Tab>
-          </TabList>
-          {/* Profile Tab */}
-          <TabPanel>
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FaUser /> Profile Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Name */}
-                <div className="flex items-center gap-2">
-                  <FaUser className="text-gray-400" />
-                  <span className="font-semibold">Full Name:</span>
-          {editMode ? (
-                    <input className="border rounded px-2 py-1 ml-2 flex-1" value={editName} onChange={e => setEditName(e.target.value)} />
-                  ) : (
-                    <span className="ml-2">{user?.name || 'N/A'}</span>
-                  )}
-              </div>
-                {/* Title */}
-                <div className="flex items-center gap-2">
-                  <FaEdit className="text-gray-400" />
-                  <span className="font-semibold">Title/Status:</span>
-                  {editMode ? (
-                    <input className="border rounded px-2 py-1 ml-2 flex-1" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
-                  ) : (
-                    <span className="ml-2">{user?.title || 'N/A'}</span>
-                  )}
-              </div>
-                {/* Bio */}
-                <div className="flex items-center gap-2 md:col-span-2">
-                  <FaEdit className="text-gray-400" />
-                  <span className="font-semibold">Bio:</span>
-                  {editMode ? (
-                    <input className="border rounded px-2 py-1 ml-2 flex-1" value={editBio} onChange={e => setEditBio(e.target.value)} />
-                  ) : (
-                    <span className="ml-2">{user?.bio || 'N/A'}</span>
-                  )}
-              </div>
-                {/* Email */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <FaEnvelope className="text-gray-400" />
-                  <span className="font-semibold">Email:</span>
-                  <span className="ml-2">{user?.email || 'N/A'}</span>
-                  {/* SSO users: always show Verified, no verification UI */}
-                  {user?.ssoProvider && user.ssoProvider !== 'local' ? (
-                    <span className="inline-block px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold ml-2">Verified</span>
-                  ) : (() => {
-                    const emailObj = (user?.emails || []).find(e => e.value === user?.email);
-                    if (emailObj && emailObj.verified) {
-                      return <span className="inline-block px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold ml-2">Verified</span>;
-                    } else {
-                      return (
-                        <div className="flex items-center gap-2 ml-2 flex-wrap">
-                          <span className="inline-block px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">Unverified</span>
-                          <button
-                            className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200"
-                            onClick={handleSendEmailVerification}
-                            disabled={verifyingEmail}
-                          >
-                            {verifyingEmail ? 'Sending...' : 'Send Code'}
-                          </button>
-                          <input
-                            className="border rounded px-2 py-0.5 text-xs w-24"
-                            placeholder="Enter code"
-                            value={emailCode}
-                            onChange={e => setEmailCode(e.target.value)}
-                          />
-                          <button
-                            className="px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200"
-                            onClick={handleVerifyEmailCode}
-                            disabled={verifyingEmail || !emailCode}
-                          >
-                            Verify Code
-                          </button>
-                          {emailVerifyError && <span className="text-xs text-red-500">{emailVerifyError}</span>}
-              </div>
-                      );
-                    }
-                  })()}
-                </div>
-                {/* Phone */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <FaPhone className="text-gray-400" />
-                  <span className="font-semibold">Phone:</span>
-                  {editMode ? (
-                    <>
-                <select
-                        className="border rounded px-2 py-0.5 text-xs w-20"
-                        value={selectedCountryCode}
-                        onChange={e => setSelectedCountryCode(e.target.value)}
-                >
-                  {COUNTRY_CODES.map(c => (
-                    <option key={c.code} value={c.code}>{c.label} {c.code}</option>
-                  ))}
-                </select>
-                <input
-                        className="border rounded px-2 py-0.5 text-xs w-32"
-                        placeholder="Enter mobile number"
-                        value={localPhone}
-                        onChange={e => setLocalPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                      />
-                      {phoneSource === 'sso' && (
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold ml-2">From SSO</span>
-                      )}
-                      {phoneSaveError && <span className="text-xs text-red-500 ml-2">{phoneSaveError}</span>}
-                    </>
-                  ) : (
-                    <>
-                      <span className="ml-2">{user?.phones?.length ? user.phones[0].value : 'N/A'}</span>
-                      {phoneSource === 'sso' && (
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold ml-2">From SSO</span>
-                      )}
-                    </>
-                  )}
-                  {/* Show verification UI only if phone is not verified and showPhoneVerificationUI is true */}
-                  {user?.phones?.[0]?.verified ? (
-                    <span className="inline-block px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold ml-2">Verified</span>
-                  ) : showPhoneVerificationUI ? (
-                    <div className="flex items-center gap-2 ml-2 flex-wrap">
-                      <span className="inline-block px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">Unverified</span>
-                      <button
-                        className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200"
-                        onClick={handleSendPhoneCode}
-                        disabled={verifyingPhone || !localPhone}
-                      >
-                        {verifyingPhone ? 'Sending...' : 'Send Code'}
-                      </button>
-                      <input
-                        className="border rounded px-2 py-0.5 text-xs w-24"
-                        placeholder="Enter code"
-                        value={phoneCode}
-                        onChange={e => setPhoneCode(e.target.value)}
-                      />
-                      <button
-                        className="px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200"
-                        onClick={handleVerifyPhoneCode}
-                        disabled={verifyingPhone || !phoneCode}
-                      >
-                        Verify Code
-                      </button>
-                      {phoneVerifyError && <span className="text-xs text-red-500">{phoneVerifyError}</span>}
-              </div>
-                  ) : null}
-                </div>
-                {/* Status */}
-                <div className="flex items-center gap-2">
-                  <FaCheck className="text-gray-400" />
-                  <span className="font-semibold">Status:</span>
-                  {editMode ? (
-                    <Select
-                      options={STATUS_OPTIONS}
-                      value={editStatus}
-                      onChange={setEditStatus}
-                      className="w-48 ml-2"
-                      placeholder="Select status"
-                    />
-                  ) : (
-                    <span className="ml-2">{STATUS_OPTIONS.find(opt => opt.value === status)?.label || 'Available'}</span>
-                  )}
-                </div>
-                {/* Timezone */}
-                <div className="flex items-center gap-2">
-                  <FaClock className="text-gray-400" />
-                  <span className="font-semibold">Timezone:</span>
-                  {editMode ? (
-                    <select className="border rounded px-2 py-1 ml-2 flex-1" value={editTimezone} onChange={e => setEditTimezone(e.target.value)}>
-                  {timeZones.map(tz => {
-                    const parts = tz.split('/');
-                    const label = parts.length > 1 ? `${tz} (${parts[1].replace('_', ' ')})` : tz;
-                    return (
-                      <option key={tz} value={tz}>{label}</option>
-                    );
-                  })}
-                </select>
-                  ) : (
-                    <span className="ml-2">{user?.timezone || 'N/A'}</span>
-                  )}
-              </div>
-                {/* Country */}
-                <div className="flex items-center gap-2">
-                  <FaGlobe className="text-gray-400" />
-                  <span className="font-semibold">Country:</span>
-                  {editMode ? (
-                <Select
-                  options={countryOptions}
-                  value={editCountry}
-                  onChange={option => setEditCountry(option)}
-                  placeholder="Select country"
-                      className="w-48 ml-2"
-                />
-                  ) : (
-                    <span className="ml-2">{user?.country || 'N/A'}</span>
-                  )}
-              </div>
-                {/* City */}
-                <div className="flex items-center gap-2">
-                  <FaMapMarkerAlt className="text-gray-400" />
-                  <span className="font-semibold">City:</span>
-                  {editMode ? (
-                <input
-                      className="border rounded px-2 py-1 ml-2 flex-1"
-                  value={editCity}
-                  onChange={e => setEditCity(e.target.value)}
-                  placeholder="Enter city"
-                />
-                  ) : (
-                    <span className="ml-2">{user?.city || 'N/A'}</span>
-                  )}
-              </div>
-              </div>
-              {editMode && (
-                <div className="flex gap-2 mt-6 justify-end">
-                <button className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700" onClick={handleSaveEdit} type="button">Save</button>
-                <button className="px-4 py-1 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300" onClick={handleCancelEdit} type="button">Cancel</button>
-              </div>
-              )}
-            </div>
-            {/* Add after the main profile info grid in the Profile Tab */}
-            <div className="mt-8 bg-gray-50 dark:bg-gray-800 rounded-xl shadow p-6">
-              <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FaUser /> Account Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Teams */}
-                <div className="flex items-center gap-2">
-                  <FaUsers className="text-gray-400" />
-                  <span className="font-semibold">Teams:</span>
-                  {userTeams.length > 0 ? (
-                    <span className="ml-2">{userTeams.map(t => t.name).join(', ')}</span>
-                  ) : (
-                    <span className="ml-2 text-gray-400">No teams</span>
-                  )}
-              </div>
-                {/* Role */}
-                <div className="flex items-center gap-2">
-                  <FaUserShield className="text-gray-400" />
-                  <span className="font-semibold">Role:</span>
-                  <span className="ml-2">{user?.role || 'N/A'}</span>
-              </div>
-                {/* Account Created */}
-                <div className="flex items-center gap-2">
-                  <FaCalendarPlus className="text-gray-400" />
-                  <span className="font-semibold">Account Created:</span>
-                  <span className="ml-2">{user?.createdAt ? new Date(user.createdAt).toLocaleString() : 'N/A'}</span>
-              </div>
-                {/* Last Login */}
-                <div className="flex items-center gap-2">
-                  <FaSignInAlt className="text-gray-400" />
-                  <span className="font-semibold">Last Login:</span>
-                  <span className="ml-2">{user?.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'N/A'}</span>
-              </div>
-                {/* Assigned Cases */}
-                <div className="flex items-center gap-2">
-                  <FaTasks className="text-gray-400" />
-                  <span className="font-semibold">Assigned Cases:</span>
-                  <span className="ml-2">{assignedCases.length}</span>
-              </div>
-                {/* Efficiency */}
-                <div className="flex items-center gap-2">
-                  <FaChartLine className="text-gray-400" />
-                  <span className="font-semibold">Efficiency:</span>
-                  <span className="ml-2">{assignedCases.length > 0 ? `${Math.round((assignedCases.filter(c => c.status === 'resolved').length / assignedCases.length) * 100)}%` : 'N/A'}</span>
-              </div>
-              </div>
-              </div>
-          </TabPanel>
-          {/* Security Tab */}
-          <TabPanel>
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FaLock /> Security</h3>
-              {/* Password change */}
-              <div className="mb-4">
-                <button
-                  className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700"
-                  onClick={() => setShowPasswordForm(!showPasswordForm)}
-                >
-                  {showPasswordForm ? 'Cancel Password Change' : 'Change Password'}
-                </button>
-                {showPasswordForm && (
-                  <form className="mt-4 space-y-2" onSubmit={handlePasswordChange}>
-                    <input
-                      type="password"
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Old Password"
-                      value={oldPassword}
-                      onChange={e => setOldPassword(e.target.value)}
-                    />
-                    <input
-                      type="password"
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="New Password"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                    />
-                    <input
-                      type="password"
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Confirm New Password"
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-1 rounded bg-green-600 text-white font-semibold hover:bg-green-700"
-                      disabled={passwordLoading}
-                    >
-                      {passwordLoading ? 'Saving...' : 'Save Password'}
-                    </button>
-                  </form>
-                )}
-              </div>
-              {/* Social logins */}
-              <div className="mb-4">
-                <h4 className="font-semibold mb-2">Social Accounts</h4>
-                <div className="flex gap-4">
-                  {/* Google */}
-                  <div className="flex items-center gap-2">
-                    <FaGoogle className="text-red-500 text-xl" />
-                    {isLinked('google') ? (
-                      <>
-                        <span className="text-green-600 font-semibold">Linked</span>
-                        <button
-                          className="ml-2 px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200"
-                          onClick={() => handleUnlinkSocial('google')}
-                          disabled={saving}
-                        >
-                          {saving ? 'Unlinking...' : 'Unlink'}
-                        </button>
-                      </>
-                    ) : (
-                      <a
-                        href={getLinkUrl('google')}
-                        className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700"
-                      >
-                        Link
-                      </a>
-                )}
-              </div>
-                  {/* Microsoft */}
-                  <div className="flex items-center gap-2">
-                    <FaMicrosoft className="text-blue-700 text-xl" />
-                    {isLinked('microsoft') ? (
-                      <>
-                        <span className="text-green-600 font-semibold">Linked</span>
-                        <button
-                          className="ml-2 px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200"
-                          onClick={() => handleUnlinkSocial('microsoft')}
-                          disabled={saving}
-                        >
-                          {saving ? 'Unlinking...' : 'Unlink'}
-                        </button>
-                      </>
-                    ) : (
-                      <a
-                        href={getLinkUrl('microsoft')}
-                        className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700"
-                      >
-                        Link
-                      </a>
-                )}
-              </div>
-                  {/* GitHub */}
-                  <div className="flex items-center gap-2">
-                    <FaGithub className="text-gray-800 text-xl" />
-                    {isLinked('github') ? (
-                      <>
-                        <span className="text-green-600 font-semibold">Linked</span>
-                        <button
-                          className="ml-2 px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200"
-                          onClick={() => handleUnlinkSocial('github')}
-                          disabled={saving}
-                        >
-                          {saving ? 'Unlinking...' : 'Unlink'}
-                        </button>
-                      </>
-                    ) : (
-                      <a
-                        href={getLinkUrl('github')}
-                        className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700"
-                      >
-                        Link
-                      </a>
-                )}
-              </div>
-              </div>
-        </div>
-              {/* 2FA (placeholder) */}
-              <div>
-                <h4 className="font-semibold mb-2">Two-Factor Authentication</h4>
-                <div className="text-gray-500">(2FA setup coming soon...)</div>
-        </div>
-            </div>
-          </TabPanel>
-          {/* Activity Tab */}
-          <TabPanel>
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FaClock /> Recent Activity</h3>
-          {recentActivity.length > 0 ? (
-            <ul className="list-disc ml-6 space-y-1">
-              {recentActivity.map(log => (
-                <li key={log._id}>{log.action} - {new Date(log.timestamp).toLocaleString()}</li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-gray-400">No recent activity.</div>
-          )}
-        </div>
-          </TabPanel>
-        </Tabs>
-      </div>
+      <Footer />
     </div>
   );
 };
