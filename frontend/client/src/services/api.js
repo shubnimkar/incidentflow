@@ -15,11 +15,6 @@ export const userApi = axios.create({
   baseURL: "http://localhost:5002/api/users",
 });
 
-export const onCallApi = axios.create({
-  baseURL: "http://localhost:5003/api/oncall",
-});
-
-
 // Attach token for protected APIs (incident, user)
 incidentApi.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
@@ -30,14 +25,6 @@ incidentApi.interceptors.request.use((config) => {
 });
 
 userApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-onCallApi.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

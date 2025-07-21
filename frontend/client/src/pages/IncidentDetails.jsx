@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, Fragment } from "react";
 import { useParams } from "react-router-dom";
-import { incidentApi, userApi, onCallApi } from "../services/api";
+import { incidentApi, userApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 //import 'emoji-mart/dist/emoji-mart.css';
@@ -222,9 +222,6 @@ const IncidentDetails = () => {
   const [confirmModal, setConfirmModal] = useState({ open: false, onConfirm: null, title: '', description: '' });
   const [hoveredEmoji, setHoveredEmoji] = useState({ commentId: null, emoji: null, users: [] });
   const [teams, setTeams] = useState([]);
-  const [assignToOnCall, setAssignToOnCall] = useState(false);
-  const [onCallUser, setOnCallUser] = useState(null);
-  const [onCallUserForTeam, setOnCallUserForTeam] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [customFilename, setCustomFilename] = useState("");
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -339,34 +336,6 @@ const IncidentDetails = () => {
     fetchTeams();
   }, [token]);
 
-  useEffect(() => {
-    // Fetch on-call user when assignToOnCall and team are set
-    const fetchOnCall = async () => {
-      if (assignToOnCall && editFields.team) {
-        try {
-          const res = await onCallApi.get(`/current?team=${editFields.team}`);
-          setOnCallUser(res.data);
-        } catch (err) {
-          setOnCallUser(null);
-        }
-      } else {
-        setOnCallUser(null);
-      }
-    };
-    fetchOnCall();
-  }, [assignToOnCall, editFields.team]);
-
-  useEffect(() => {
-    // Fetch on-call user for the incident's team (for badge display)
-    if (incident && incident.team) {
-      onCallApi.get(`/current?team=${incident.team}`)
-        .then(res => setOnCallUserForTeam(res.data))
-        .catch(() => setOnCallUserForTeam(null));
-    } else {
-      setOnCallUserForTeam(null);
-    }
-  }, [incident]);
-
   // Only allow editing if not closed
   const isClosed = incident?.status === 'closed';
   const canEdit = (user?.role === "admin" || user?.email === incident?.createdBy?.email || user?.email === incident?.createdByEmail) && !isClosed;
@@ -410,9 +379,6 @@ const IncidentDetails = () => {
         responders: editFields.responders,
         meetingUrl: editFields.meetingUrl,
       };
-      if (assignToOnCall && onCallUser?._id) {
-        payload.assignedTo = onCallUser._id;
-      }
       const res = await incidentApi.patch(`/incidents/${id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
       setIncident(res.data);
       setEditFields({

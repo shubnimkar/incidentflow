@@ -35,17 +35,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       adminOnly: true,
     },
     {
-      label: "On-Call Status",
-      path: "/oncall-status",
-      icon: <i className="la la-clock"></i>,
-    },
-    {
-      label: "On-Call Rotations",
-      path: "/oncall-rotations",
-      icon: <i className="la la-calendar-alt"></i>,
-      adminOnly: true,
-    },
-    {
       label: "Profile",
       path: "/profile",
       icon: <i className="la la-user-friends"></i>,
