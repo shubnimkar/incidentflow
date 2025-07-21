@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { incidentApi, userApi, onCallApi } from "../services/api";
+import { incidentApi, userApi } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -157,7 +157,6 @@ function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
-  const [onCallMap, setOnCallMap] = useState({});
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -225,27 +224,17 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchTeamsAndOnCall = async () => {
+    const fetchTeams = async () => {
       try {
         const res = await userApi.get("/teams");
         setTeams(res.data);
-        const onCallObj = {};
-        for (const team of res.data) {
-          try {
-            const ocRes = await onCallApi.get(`/current?team=${team._id}`);
-            onCallObj[team._id] = ocRes.data;
-          } catch {
-            onCallObj[team._id] = null;
-          }
-        }
-        setOnCallMap(onCallObj);
       } catch (err) {
         console.error("Failed to fetch teams:", err);
         setTeams([]);
         setError("Failed to load teams. Please contact your admin if this persists.");
       }
     };
-    fetchTeamsAndOnCall();
+    fetchTeams();
   }, []);
 
   // Real-time updates with Socket.IO
@@ -311,7 +300,9 @@ function Dashboard() {
       ? incident.assignedTo?._id === assignedUserFilter
       : true;
     const matchesTag = tagFilter ? (incident.tags || []).includes(tagFilter) : true;
-    const matchesTeam = teamFilter ? incident.team === teamFilter : true;
+    const matchesTeam = teamFilter
+      ? (incident.team && (incident.team._id === teamFilter || incident.team === teamFilter))
+      : true;
     const matchesCategory = categoryFilter ? incident.category === categoryFilter : true;
     return matchesTitle && matchesStatus && matchesAssignedUser && matchesTag && matchesTeam && matchesCategory;
   });
@@ -887,8 +878,8 @@ function Dashboard() {
                                                         {list.map((incident, index) => (
                                 <Draggable key={incident._id} draggableId={incident._id.toString()} index={index} isDragDisabled={user?.role !== 'admin'}>
                                   {(provided, snapshot) => {
-                                    const onCallUser = onCallMap[incident.team];
-                                    const isOnCallAssigned = onCallUser && incident.assignedTo && incident.assignedTo._id === onCallUser._id;
+                                    const commander = users.find(u => u._id === (incident.assignedTo?._id || incident.assignedTo));
+                                    const team = teams.find(t => t._id === (incident.team?._id || incident.team));
                                     const isSelected = selectedIncidents.includes(incident._id);
                                     const sev = incident.severity?.toLowerCase();
                                     const windowHours = overduePerSeverity[sev] || overdueWindow;

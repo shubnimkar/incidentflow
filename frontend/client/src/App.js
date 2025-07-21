@@ -15,13 +15,12 @@ import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import AuthCallback from "./pages/AuthCallback";
 import { Toaster, toast } from "react-hot-toast";
-import OnCallStatus from "./pages/OnCallStatus";
-import OnCallRotations from "./pages/OnCallRotations";
 import UserProfile from "./pages/UserProfile";
 import ClosedCases from "./pages/ClosedCases";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import PublicProfile from "./pages/PublicProfile";
+import LandingPage from "./pages/LandingPage";
 
 
 function App() {
@@ -48,7 +47,7 @@ function App() {
       <Router>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -72,8 +71,6 @@ function App() {
                 user?.role === "admin" ? <AdminPanel /> : <NotAuthorized />
               }
             />
-            <Route path="/oncall-status" element={<OnCallStatus />} />
-            <Route path="/oncall-rotations" element={user?.role === "admin" ? <OnCallRotations /> : <NotAuthorized />} />
             <Route path="/profile" element={<UserProfile />} />
           </Route>
         </Routes>

@@ -1,26 +1,21 @@
-import React, { useEffect, useState, useContext, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { userApi } from "../services/api";
 import { toast } from "react-hot-toast";
 import Cropper from 'react-easy-crop';
 import Modal from 'react-modal';
-import { FaCamera, FaTrash, FaEdit, FaCheck, FaTimes, FaLock, FaPlus, FaEye, FaEyeSlash, FaUser, FaGoogle, FaGithub, FaMicrosoft, FaEnvelope, FaPhone, FaClock, FaGlobe, FaMapMarkerAlt, FaUsers, FaUserShield, FaCalendarPlus, FaSignInAlt, FaTasks, FaChartLine, FaRegEdit } from 'react-icons/fa';
+import { FaCamera, FaGoogle, FaGithub, FaMicrosoft, FaEnvelope, FaMapMarkerAlt, FaCalendarPlus, FaRegEdit, FaLock, FaUser, FaClock } from 'react-icons/fa';
 import { FiShare2 } from 'react-icons/fi';
 import { FiTrendingUp, FiBriefcase, FiUsers, FiUser, FiMail, FiCheckCircle, FiPhone, FiClock, FiMapPin, FiCalendar, FiShield } from 'react-icons/fi';
-import timeZones from './timeZones'; // Assume a timeZones.js file exports an array of tz strings
+import timeZones from './timeZones';
+import Select from 'react-select';
+import { allCountries } from 'country-region-data';
+import { useLocation } from 'react-router-dom';
+import Footer from '../components/Footer';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { incidentApi } from '../services/api';
-import { QRCodeSVG } from 'qrcode.react';
-import { useAuth } from '../context/AuthContext';
-import Select from 'react-select';
-import 'react-country-state-city/dist/react-country-state-city.css';
-import { allCountries } from 'country-region-data';
-import AsyncSelect from 'react-select/async';
+import getCroppedImg from '../utils/cropImage';
 import debounce from 'lodash.debounce';
-import { useLocation } from 'react-router-dom';
-import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
-import 'react-tabs/style/react-tabs.css';
-import getCroppedImg from '../utils/cropImage'; // Utility to get cropped image blob
-import Footer from '../components/Footer';
 
 const COUNTRY_CODES = [
   { code: '+1', label: '🇺🇸 US' },
@@ -33,22 +28,10 @@ const COUNTRY_CODES = [
   { code: '+86', label: '🇨🇳 China' },
   { code: '+971', label: '🇦🇪 UAE' },
   { code: '+27', label: '🇿🇦 South Africa' },
-  // ...add more as needed
 ];
 
 function isValidE164(phone) {
   return /^\+[1-9]\d{1,14}$/.test(phone);
-}
-
-function getPasswordStrength(password) {
-  let score = 0;
-  if (password.length >= 6) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-  if (score <= 1) return { label: "Weak", color: "text-red-500" };
-  if (score === 2 || score === 3) return { label: "Moderate", color: "text-yellow-500" };
-  return { label: "Strong", color: "text-green-500" };
 }
 
 function ProfileHeader() {
@@ -77,76 +60,6 @@ function getRoleBadge(role) {
   return <span className="inline-block px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-semibold ml-2">{role || 'N/A'}</span>;
 }
 
-// Demo static data for country/state/city
-const DEMO_LOCATION_DATA = [
-  {
-    label: 'India',
-    value: 'IN',
-    states: [
-      {
-        label: 'Maharashtra',
-        value: 'MH',
-        cities: [
-          { label: 'Mumbai', value: 'Mumbai' },
-          { label: 'Pune', value: 'Pune' },
-          { label: 'Nagpur', value: 'Nagpur' },
-        ],
-      },
-      {
-        label: 'Karnataka',
-        value: 'KA',
-        cities: [
-          { label: 'Bangalore', value: 'Bangalore' },
-          { label: 'Mysore', value: 'Mysore' },
-        ],
-      },
-    ],
-  },
-  {
-    label: 'United States',
-    value: 'US',
-    states: [
-      {
-        label: 'California',
-        value: 'CA',
-        cities: [
-          { label: 'Los Angeles', value: 'Los Angeles' },
-          { label: 'San Francisco', value: 'San Francisco' },
-        ],
-      },
-      {
-        label: 'New York',
-        value: 'NY',
-        cities: [
-          { label: 'New York City', value: 'New York City' },
-          { label: 'Buffalo', value: 'Buffalo' },
-        ],
-      },
-    ],
-  },
-  {
-    label: 'United Kingdom',
-    value: 'UK',
-    states: [
-      {
-        label: 'England',
-        value: 'ENG',
-        cities: [
-          { label: 'London', value: 'London' },
-          { label: 'Manchester', value: 'Manchester' },
-        ],
-      },
-      {
-        label: 'Scotland',
-        value: 'SCT',
-        cities: [
-          { label: 'Edinburgh', value: 'Edinburgh' },
-          { label: 'Glasgow', value: 'Glasgow' },
-        ],
-      },
-    ],
-  },
-];
 
 // Use environment variable for GeoDB Cities API key
 const GEO_API_KEY = process.env.REACT_APP_GEODB_API_KEY; // Set this in your .env file
@@ -601,8 +514,6 @@ const UserProfile = () => {
         country: countryString,
         status: editStatus.value,
       };
-      // Debug log for payload
-      console.log('Profile update payload:', payload);
       await userApi.put("/me", payload);
       // Refetch the latest user profile
       const res = await userApi.get("/me");
@@ -859,14 +770,11 @@ const UserProfile = () => {
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
   if (!user) return null;
 
-  // Debug logging for country data
-  console.log('allCountries:', allCountries);
   // Build country options from country-region-data
   const countryOptions = allCountries.map(countryArr => ({
     label: countryArr[0], // countryName
     value: countryArr[1], // countryShortCode
   }));
-  console.log('countryOptions:', countryOptions);
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10 font-inter">
