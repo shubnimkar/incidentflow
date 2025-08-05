@@ -74,18 +74,16 @@ cd incidentflow
 
 2. Setup Environment Variables
 
-Each service has its own `.env.example` file. Copy these to `.env` and fill in your actual values:
+➤ frontend/client/.env
+REACT_APP_API_URL=http://localhost:5001
 
-```bash
-# Copy example files to .env
-cp frontend/client/.env.example frontend/client/.env
-cp services/auth/.env.example services/auth/.env
-cp services/incident/.env.example services/incident/.env
-cp services/user/.env.example services/user/.env
-cp services/oncall/.env.example services/oncall/.env
-```
-
-**Important:** Never commit `.env` files to version control. They contain sensitive information and are automatically ignored by git.
+➤ services/auth/.env
+PORT=5001
+MONGO_URI=your_mongo_connection_string
+JWT_SECRET=your_secret_key
+CLIENT_URL=http://localhost:3000
+MAILTRAP_USER=your_mailtrap_username
+MAILTRAP_PASS=your_mailtrap_password
 
 3. Install Dependencies
 
