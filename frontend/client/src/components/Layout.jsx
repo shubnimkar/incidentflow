@@ -14,15 +14,15 @@ const Layout = () => {
   }, [collapsed]);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* Header with logo */}
-      <header className="flex items-center px-8 py-4 border-b border-gray-200 bg-white shadow-sm z-40">
+      <header className="flex items-center px-8 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm z-40 transition-colors duration-300">
         <img src="/logo.png" alt="Incident Flow Logo" className="h-12" style={{maxHeight: '48px', width: 'auto'}} />
       </header>
       <div className="flex flex-1">
         <Sidebar collapsed={collapsed} toggleSidebar={() => setCollapsed(!collapsed)} />
         <main
-          className="flex-1 transition-all duration-300 bg-gray-50 dark:bg-gray-900 pt-0 px-6"
+          className="flex-1 transition-all duration-300 bg-gray-50 dark:bg-gray-900 pt-0 px-6 min-h-screen"
         >
           <Outlet />
         </main>

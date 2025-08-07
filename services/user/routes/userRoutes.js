@@ -10,8 +10,8 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const teamController = require("../controllers/teamController");
-const sendEmail = require('../../auth/utils/sendEmail');
-const emailTemplates = require('../../auth/utils/emailTemplates');
+const sendEmail = require('../utils/sendEmail');
+const emailTemplates = require('../utils/emailTemplates');
 const crypto = require('crypto');
 const twilio = require('twilio');
 require('dotenv').config();
@@ -26,7 +26,7 @@ const multerS3 = require('multer-s3');
 const router = express.Router();
 
 // Set up multer storage for avatars
-const avatarDir = path.join(__dirname, '../../uploads/avatars');
+const avatarDir = path.join(__dirname, '../uploads/avatars');
 if (!fs.existsSync(avatarDir)) {
   fs.mkdirSync(avatarDir, { recursive: true });
 }
@@ -64,14 +64,24 @@ const sendSMS = async (phone, message) => {
 // Helper to generate a pre-signed URL for S3 objects
 const getPresignedUrl = (key) => {
   if (!key) return null;
-  const s3Key = key.replace(/^https?:\/\/[^/]+\//, '');
-  const presignedUrl = s3.getSignedUrl('getObject', {
-    Bucket: process.env.S3_BUCKET,
-    Key: s3Key,
-    Expires: 60 * 5 // 5 minutes
-  });
-  // console.log('[DEBUG] Generating pre-signed URL:', { key, s3Key, presignedUrl }); // Removed debug log
-  return presignedUrl;
+  
+  // If it's already a full URL (S3), generate pre-signed URL
+  if (key.startsWith('http')) {
+    const s3Key = key.replace(/^https?:\/\/[^/]+\//, '');
+    const presignedUrl = s3.getSignedUrl('getObject', {
+      Bucket: process.env.S3_BUCKET,
+      Key: s3Key,
+      Expires: 60 * 5 // 5 minutes
+    });
+    return presignedUrl;
+  }
+  
+  // If it's a local filename, return the local URL
+  if (key.includes('-') && key.includes('.jpg')) {
+    return `http://localhost:5002/api/users/avatar/${key}`;
+  }
+  
+  return null;
 };
 
 // ✅ Public routes
@@ -419,7 +429,7 @@ router.post('/resend-email-verification', authenticateToken, async (req, res) =>
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     user.verificationCodes.push({ value: email, code, expiresAt, type: 'email' });
     const verificationUrl = `${process.env.BACKEND_URL || 'http://localhost:5002/api/users'}/verify-email?email=${encodeURIComponent(email)}&code=${code}`;
-    await require('../../auth/utils/sendEmail')(email, 'Verify your email address', require('../../auth/utils/emailTemplates').verificationEmail(user.name, verificationUrl));
+    await require('../utils/sendEmail')(email, 'Verify your email address', require('../utils/emailTemplates').verificationEmail(user.name, verificationUrl));
     await user.save();
     res.json({ message: 'Verification email sent' });
   } catch (err) {

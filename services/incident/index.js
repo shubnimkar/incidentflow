@@ -31,7 +31,7 @@ app.use(cors({
 app.use(express.json());
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, "../uploads/incident-attachments");
+const uploadsDir = path.join(__dirname, 'uploads/incident-attachments');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -41,6 +41,11 @@ app.use("/uploads/incident-attachments", express.static(uploadsDir));
 app.use((req, res, next) => {
   req.requestId = uuidv4();
   next();
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'incident-service' });
 });
 
 app.use("/api/incidents", require("./routes/incidentRoutes"));

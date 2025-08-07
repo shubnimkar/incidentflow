@@ -1,0 +1,134 @@
+services:
+  # Auth Service
+  auth-service:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    container_name: incidentflow-auth
+    restart: unless-stopped
+    env_file:
+      - ./services/auth/.env
+    ports:
+      - "5000:5000"
+    networks:
+      - incidentflow-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/api/auth/test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Incident Service
+  incident-service:
+    build:
+      context: ./services/incident
+      dockerfile: Dockerfile
+    container_name: incidentflow-incident
+    restart: unless-stopped
+    env_file:
+      - ./services/incident/.env
+    ports:
+      - "5001:5001"
+    volumes:
+      - incident_uploads:/app/uploads
+    networks:
+      - incidentflow-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5001/api/incidents"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # User Service
+  user-service:
+    build:
+      context: ./services/user
+      dockerfile: Dockerfile
+    container_name: incidentflow-user
+    restart: unless-stopped
+    env_file:
+      - ./services/user/.env
+    ports:
+      - "5002:5002"
+    volumes:
+      - user_uploads:/app/uploads
+    networks:
+      - incidentflow-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5002/api/users"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # OnCall Service
+  oncall-service:
+    build:
+      context: ./services/oncall
+      dockerfile: Dockerfile
+    container_name: incidentflow-oncall
+    restart: unless-stopped
+    env_file:
+      - ./services/oncall/.env
+    ports:
+      - "5003:5003"
+    networks:
+      - incidentflow-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend/client
+      dockerfile: Dockerfile
+    container_name: incidentflow-frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/client/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-service
+      - incident-service
+      - user-service
+      - oncall-service
+    networks:
+      - incidentflow-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy (Optional) - Commented out due to missing config files
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: incidentflow-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - frontend
+  #     - auth-service
+  #     - incident-service
+  #     - user-service
+  #     - oncall-service
+  #   networks:
+  #     - incidentflow-network
+
+volumes:
+  incident_uploads:
+    driver: local
+  user_uploads:
+    driver: local
+
+networks:
+  incidentflow-network:
+    driver: bridge 

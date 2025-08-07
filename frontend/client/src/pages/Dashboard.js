@@ -53,9 +53,9 @@ const getStatusBadgeClass = (status) => {
     case 'resolved':
       return 'badge-success';
     case 'closed':
-      return 'text-meta bg-gray-100 border border-gray-200';
+      return 'text-meta bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600';
     default:
-      return 'text-meta bg-gray-100 border border-gray-200';
+      return 'text-meta bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600';
   }
 };
 
@@ -65,19 +65,19 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
   // Modern card layout for Kanban (not compact)
   if (!compact) {
     return (
-      <div className="bg-white border border-gray-200 rounded-2xl shadow p-5 flex flex-col gap-2 hover:shadow-lg transition-all duration-150 font-sans">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow p-5 flex flex-col gap-2 hover:shadow-lg transition-all duration-150 font-sans">
         <div className="flex items-start gap-2 mb-1">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
-              <span className="text-2xl font-extrabold text-gray-900 break-words">{incident.title}</span>
+              <span className="text-2xl font-extrabold text-gray-900 dark:text-white break-words">{incident.title}</span>
               {incident.status && (
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-100 capitalize">{incident.status.replace('_', ' ')}</span>
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-300 border border-green-100 dark:border-green-800 capitalize">{incident.status.replace('_', ' ')}</span>
               )}
               {incident.priority && (
                 <span className="ml-1"><PriorityBadge priority={incident.priority} /></span>
               )}
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700 mb-2">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700 dark:text-gray-300 mb-2">
               <span><span className="font-semibold">ID:</span> {incident._id}</span>
               <span><span className="font-semibold">Created:</span> {incident.createdAt ? new Date(incident.createdAt).toLocaleString() : 'N/A'}</span>
               <span><span className="font-semibold">Updated:</span> {incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : 'N/A'}</span>
@@ -85,10 +85,10 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
           </div>
         </div>
         <div className="flex items-center gap-2 mb-2">
-          <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
-            {commander?.name?.[0]?.toUpperCase() || commander?.email?.[0]?.toUpperCase() || '?'}</div>
-          <span className="text-sm font-medium text-gray-900">{commander?.name || commander?.email || 'Unassigned'}</span>
-          <span className="text-xs text-gray-400 ml-2">Incident Commander</span>
+          <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-lg">
+            {commander?.name?.[0] || commander?.email?.[0] || '?'}</div>
+          <span className="text-sm font-medium text-gray-900 dark:text-white">{commander?.name || commander?.email || 'Unassigned'}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">Incident Commander</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 mb-2">
           <div><span className="font-semibold">Type:</span> <span>{incident.incidentType || '—'}</span></div>
@@ -98,7 +98,7 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
         </div>
         <div className="flex gap-2 mt-2">
           <button className="btn-primary px-4 py-2 rounded text-sm font-semibold" onClick={() => onView(incident)}>View</button>
-          <button className="px-4 py-2 rounded text-sm font-semibold bg-red-100 text-red-700" onClick={() => onDelete(incident)}>Delete</button>
+          <button className="px-4 py-2 rounded text-sm font-semibold bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800 transition-colors" onClick={() => onDelete(incident)}>Delete</button>
         </div>
       </div>
     );
@@ -124,7 +124,7 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
       </div>
       {/* Commander */}
       <div className="flex items-center gap-2 mb-2">
-        <span className="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-blue-800 font-bold text-xs">
+        <span className="w-7 h-7 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center text-blue-800 dark:text-blue-200 font-bold text-xs">
           {commander?.name?.[0] || commander?.email?.[0] || '?'}</span>
         <span className="text-xs">{commander?.name || commander?.email || 'Unassigned'}</span>
         <span className="text-xs text-meta ml-2">Incident Commander</span>
@@ -140,13 +140,13 @@ const IncidentCard = ({ incident, users, teams, onAssign, onEdit, onDelete, onVi
       {incident.meetingUrl && (
         <div className="mb-2">
           <span className="font-semibold text-xs">Meeting:</span>
-          <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 underline text-xs break-all">{incident.meetingUrl}</a>
+          <a href={incident.meetingUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 dark:text-blue-400 underline text-xs break-all">{incident.meetingUrl}</a>
         </div>
       )}
       {/* Actions */}
       <div className="flex gap-2 mt-2">
         <button className="btn-primary px-3 py-1 rounded text-xs font-semibold" onClick={() => onView(incident)}>View</button>
-        <button className="px-3 py-1 rounded text-xs font-semibold bg-red-100 text-red-700" onClick={() => onDelete(incident)}>Delete</button>
+        <button className="px-3 py-1 rounded text-xs font-semibold bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800 transition-colors" onClick={() => onDelete(incident)}>Delete</button>
       </div>
     </Card>
   );

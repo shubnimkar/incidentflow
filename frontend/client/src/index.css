@@ -42,25 +42,23 @@
   --if-text-main: #212121;    /* Main text */
   --if-text-meta: #757575;    /* Meta/secondary text */
 }
-:root.dark {
+
+.dark {
   --if-primary: #90caf9;         /* Lighter blue for dark bg */
   --if-primary-hover: #64b5f6;
   --if-success: #81c784;         /* Lighter green */
   --if-warning: #ffb74d;         /* Lighter orange */
   --if-warning-bg: #2d1f00;      /* Deep brown for warning bg */
   --if-success-bg: #1b2e1b;      /* Deep green for success bg */
-  --if-card-bg: #23272f;         /* Card background */
-  --if-page-bg: #181a20;         /* Page background */
-  --if-border: #2d323c;          /* Border */
-  --if-text-main: #f3f4f6;       /* Main text */
-  --if-text-meta: #a0aec0;       /* Meta/secondary text */
+  --if-card-bg: #1f2937;         /* Card background */
+  --if-page-bg: #111827;         /* Page background */
+  --if-border: #374151;          /* Border */
+  --if-text-main: #f9fafb;       /* Main text */
+  --if-text-meta: #9ca3af;       /* Meta/secondary text */
 }
 
 html, body {
-  transition: background 0.3s, color 0.3s, border-color 0.3s;
-}
-.card {
-  transition: background 0.3s, color 0.3s, border-color 0.3s;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body {
@@ -73,11 +71,13 @@ body {
   border: 1px solid var(--if-border);
   border-radius: 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .btn-primary {
   background: var(--if-primary);
   color: #fff;
+  transition: background-color 0.3s ease;
 }
 .btn-primary:hover {
   background: var(--if-primary-hover);
@@ -98,11 +98,70 @@ body {
 
 /* Sidebar icon color tweaks */
 .sidebar-icon i {
-  color: #222 !important;
+  color: #374151 !important;
   opacity: 0.85;
   transition: color 0.2s, opacity 0.2s;
 }
+
+.dark .sidebar-icon i {
+  color: #d1d5db !important;
+}
+
 .sidebar-icon.active i {
   color: #2563eb !important; /* Tailwind blue-600 */
   opacity: 1;
+}
+
+.dark .sidebar-icon.active i {
+  color: #60a5fa !important; /* Tailwind blue-400 for dark mode */
+}
+
+/* Dark mode transitions for all elements */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Improve dark mode for form elements */
+.dark input, .dark textarea, .dark select {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #f9fafb;
+}
+
+.dark input:focus, .dark textarea:focus, .dark select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+/* Dark mode for tables */
+.dark table {
+  background-color: #1f2937;
+}
+
+.dark th {
+  background-color: #374151;
+  color: #f9fafb;
+}
+
+.dark td {
+  background-color: #1f2937;
+  color: #f9fafb;
+  border-color: #374151;
+}
+
+/* Dark mode for modals and overlays */
+.dark .modal-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.dark .modal-content {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+/* Dark mode for tooltips */
+.dark .tooltip {
+  background-color: #374151;
+  color: #f9fafb;
+  border-color: #4b5563;
 }
