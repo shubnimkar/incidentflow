@@ -1,154 +1,384 @@
-# 🚨 IncidentFlow - Incident Management Platform
+# 🚨 IncidentFlow - Production-Ready Incident Management Platform
 
-A full-featured Incident Management System built using the **MERN stack** with a **microservices architecture**. Designed for engineering teams to track, manage, and resolve incidents efficiently, with powerful features like role-based access control, password reset via email, audit logs, real-time updates, and a modern Kanban-style dashboard.
+A modern, microservices-based incident management platform built with React, Node.js, and MongoDB. Designed for DevOps teams, SREs, and IT operations to handle incidents efficiently with real-time collaboration.
 
----
+![IncidentFlow](https://img.shields.io/badge/IncidentFlow-Production%20Ready-brightgreen)
+![Docker](https://img.shields.io/badge/Docker-Containerized-blue)
+![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-orange)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green)
+![React](https://img.shields.io/badge/React-19-blue)
+![Node.js](https://img.shields.io/badge/Node.js-18-green)
 
-## 📁 Project Structure
+## 🌟 **Production Features**
 
-incidentflow/
-├── frontend/
-│ └── client/ # React frontend (Tailwind CSS, React Router, Axios, Lucide Icons)
-├── services/
-│ ├── auth/ # Authentication microservice (JWT, roles, password reset)
-│ ├── incident/ # Incident microservice (create, update, assign, comments, logs)
-│ └── user/ # User microservice (role management, user list)
+### **🏗️ Architecture**
+- **Microservices**: Auth, Incident, User, OnCall services
+- **Reverse Proxy**: Nginx with load balancing and SSL termination
+- **Containerized**: Full Docker support with health checks
+- **Real-time**: Socket.IO for live incident updates
+- **Dark Mode**: Complete UI with smooth transitions
 
+### **🔒 Security & Performance**
+- **Rate Limiting**: API protection against DDoS
+- **Security Headers**: XSS, CSRF, and content type protection
+- **SSL/TLS**: HTTPS support with certificate management
+- **Gzip Compression**: Optimized content delivery
+- **Static Caching**: Long-term asset caching
 
----
+### **📊 Monitoring & Reliability**
+- **Health Checks**: All services monitored
+- **Logging**: Structured logs for debugging
+- **Error Handling**: Graceful failure recovery
+- **Scalability**: Ready for horizontal scaling
 
-## ⚙️ Tech Stack
+## 🚀 **Quick Start (Production)**
 
-| Layer       | Tech                                                                 |
-|-------------|----------------------------------------------------------------------|
-| Frontend    | React, Tailwind CSS, React Router, Axios, Lucide Icons, Hot Toast    |
-| Backend     | Node.js, Express.js (Microservices)                                  |
-| Database    | MongoDB (Atlas or Local)                                             |
-| Auth        | JWT, Bcrypt, Role-Based Access                                       |
-| Emails      | Nodemailer with Mailtrap                                             |
-| Styling     | Tailwind CSS + Dark Mode Support                                     |
+### **Prerequisites**
+- Docker & Docker Compose
+- MongoDB Atlas account (or local MongoDB)
+- AWS S3 bucket (for file uploads)
+- SMTP provider (for email notifications)
 
----
-
-## ✨ Features
-
-### 🧑‍💻 User & Auth
-- Signup / Login
-- Forgot & Reset Password (via email link)
-- JWT-based authentication
-- Role-based access: `admin`, `responder`
-- Password strength checker & visibility toggle
-
-### 📋 Incidents
-- Create, update, assign incidents
-- Kanban-style dashboard: Open, In Progress, Resolved
-- Drag & drop to change status (in progress)
-- Colored severity tags (High, Medium, Low)
-- Assign to user with avatars & badges
-
-### 💬 Comments & Audit Logs
-- Comment on incidents
-- Edit/Delete comments
-- View timeline of admin actions (audit logs)
-
-### 🛠 Admin Panel
-- View all users
-- Promote/Demote users to/from admin
-- Monitor incident assignments & status
-
-### 🎨 UI/UX
-- Fully styled with Tailwind CSS
-- Responsive and mobile-friendly
-- Dark mode toggle
-- Toast notifications via `react-hot-toast`
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the Repo
-
+### **1. Clone & Setup**
 ```bash
-git clone https://github.com/yourusername/incidentflow.git
+git clone https://github.com/shubnimkar/incidentflow.git
 cd incidentflow
+```
 
-2. Setup Environment Variables
+### **2. Configure Environment**
+```bash
+# Copy environment templates
+cp services/auth/env.example services/auth/.env
+cp services/incident/env.example services/incident/.env
+cp services/user/env.example services/user/.env
+cp services/oncall/env.example services/oncall/.env
+cp frontend/client/env.example frontend/client/.env
+```
 
-➤ frontend/client/.env
-REACT_APP_API_URL=http://localhost:5001
+### **3. Update Environment Variables**
+Edit each `.env` file with your production values:
 
-➤ services/auth/.env
-PORT=5001
-MONGO_URI=your_mongo_connection_string
-JWT_SECRET=your_secret_key
-CLIENT_URL=http://localhost:3000
-MAILTRAP_USER=your_mailtrap_username
-MAILTRAP_PASS=your_mailtrap_password
+**Required for all services:**
+```env
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/incidentflow
+JWT_SECRET=your-super-secure-jwt-secret
+```
 
-3. Install Dependencies
+**For file uploads (User & Incident services):**
+```env
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_REGION=us-east-1
+S3_BUCKET=your-s3-bucket-name
+```
 
-# Example for auth service
-cd services/auth
-npm install
+**For email notifications:**
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+EMAIL_FROM=noreply@yourdomain.com
+```
 
-# Repeat for:
-cd ../incident && npm install
-cd ../user && npm install
-cd ../../frontend/client && npm install
+**For SMS notifications (User service):**
+```env
+TWILIO_ACCOUNT_SID=your-twilio-sid
+TWILIO_AUTH_TOKEN=your-twilio-token
+TWILIO_FROM_NUMBER=+1234567890
+```
 
-4. Run Services
+### **4. Start with Nginx (Recommended)**
+```bash
+# Start all services with Nginx reverse proxy
+make nginx-start
 
-# Start auth service
-cd services/auth
-npm run dev
+# Access via: http://localhost
+```
 
-# Start incident service
-cd ../incident
-npm run dev
+### **5. Add SSL (Production)**
+```bash
+# Generate development SSL certificates
+make ssl-dev
 
-# Start user service
-cd ../user
-npm run dev
+# Or use Let's Encrypt for production
+# Follow nginx/ssl/README.md for instructions
+```
 
-# Start frontend
-cd ../../frontend/client
-npm start
+## 🏃‍♂️ **Alternative Start Methods**
 
-Access the frontend at: http://localhost:3000
+### **Direct Access (Development)**
+```bash
+make up
+# Access: http://localhost:3000
+```
 
-🧪 API Testing (Optional)
-Use Postman to test:
+### **Individual Services**
+```bash
+# Build all images
+make build
 
-POST /api/auth/register
+# Start specific service
+docker compose up -d auth-service
+docker compose up -d incident-service
+docker compose up -d user-service
+docker compose up -d oncall-service
+docker compose up -d frontend
+```
 
-POST /api/auth/login
+## 📋 **Service Architecture**
 
-POST /api/auth/forgot-password
+| Service | Port | Purpose | Health Check |
+|---------|------|---------|--------------|
+| **Nginx** | 80/443 | Reverse Proxy | `/health` |
+| **Frontend** | 3000 | React App | `http://localhost:3000` |
+| **Auth** | 5000 | Authentication | `http://localhost:5000/health` |
+| **Incident** | 5001 | Incident Management | `http://localhost:5001/health` |
+| **User** | 5002 | User Management | `http://localhost:5002/health` |
+| **OnCall** | 5003 | On-Call Scheduling | `http://localhost:5003/health` |
 
-POST /api/auth/reset-password/:token
+## 🔧 **Management Commands**
 
-GET /api/incidents
+### **Basic Operations**
+```bash
+make help          # Show all available commands
+make status        # Check service status
+make logs          # View all logs
+make restart       # Restart all services
+make down          # Stop all services
+make clean         # Remove containers and volumes
+```
 
-POST /api/incidents/:id/comments
+### **Nginx Operations**
+```bash
+make nginx-start   # Start with Nginx reverse proxy
+make nginx-stop    # Stop Nginx service
+make nginx-logs    # View Nginx logs
+make ssl-dev       # Generate development SSL certificates
+```
 
-GET /api/users, PATCH /api/users/:id/promote
+### **Development**
+```bash
+make shell         # Open shell in any service
+make install-deps  # Install all dependencies
+```
 
-📸 Screenshots
-Coming soon!
+## 🌐 **Access Points**
 
-🔜 Upcoming Features
-Docker Compose setup
+### **With Nginx (Production)**
+- **Main App**: `http://localhost/` or `https://localhost/`
+- **API Gateway**: All APIs through port 80/443
+- **Health Check**: `http://localhost/health`
 
-WebSocket-based real-time updates
+### **Direct Access (Development)**
+- **Frontend**: `http://localhost:3000`
+- **Auth API**: `http://localhost:5000/api/auth`
+- **Incident API**: `http://localhost:5001/api/incidents`
+- **User API**: `http://localhost:5002/api/users`
+- **OnCall API**: `http://localhost:5003/api/oncall`
 
-Slack/email alerts for critical incidents
+## 🔒 **Security Features**
 
-Export incident as PDF
+### **Nginx Security**
+- **Rate Limiting**: 10 req/s for APIs, 5 req/min for login
+- **Security Headers**: XSS, CSRF, content type protection
+- **SSL/TLS**: Full HTTPS support
+- **DDoS Protection**: Request limiting and filtering
 
-Responsive mobile app version
+### **Application Security**
+- **JWT Authentication**: Secure token-based auth
+- **Password Hashing**: bcrypt with salt
+- **Input Validation**: All user inputs sanitized
+- **CORS Protection**: Configured for production domains
 
-👨‍💻 Author
-Shubham Nimkar
-Built for DevOps portfolio demonstration
-Contributions welcome! PRs and feedback encouraged.
+## 📊 **Monitoring & Logs**
+
+### **Service Health**
+```bash
+# Check all services
+make status
+
+# Individual service health
+curl http://localhost/api/auth/test
+curl http://localhost/api/incidents/health
+curl http://localhost/api/users/health
+curl http://localhost/api/oncall/health
+```
+
+### **Logs**
+```bash
+# All services
+make logs
+
+# Specific service
+docker compose logs -f auth-service
+docker compose logs -f nginx
+
+# Nginx logs
+make nginx-logs
+```
+
+## 🚀 **Production Deployment**
+
+### **1. Environment Setup**
+```bash
+# Set production environment variables
+export NODE_ENV=production
+export MONGO_URI=your-production-mongodb-uri
+export JWT_SECRET=your-production-jwt-secret
+```
+
+### **2. SSL Certificate (Let's Encrypt)**
+```bash
+# Install certbot
+sudo apt-get install certbot
+
+# Generate certificate
+sudo certbot certonly --standalone -d yourdomain.com
+
+# Copy to Nginx
+sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem nginx/ssl/cert.pem
+sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem nginx/ssl/key.pem
+```
+
+### **3. Start Production Services**
+```bash
+# Start with Nginx and SSL
+make nginx-start
+
+# Verify SSL
+curl -I https://yourdomain.com
+```
+
+### **4. Auto-renewal (SSL)**
+```bash
+# Add to crontab
+0 12 * * * /usr/bin/certbot renew --quiet
+```
+
+## 🔧 **Customization**
+
+### **Nginx Configuration**
+Edit `nginx/nginx.conf` for:
+- Custom rate limiting
+- Additional security headers
+- Load balancing configuration
+- SSL certificate paths
+
+### **Service Configuration**
+Each service has its own `.env` file:
+- `services/auth/.env` - Authentication settings
+- `services/incident/.env` - Incident management
+- `services/user/.env` - User management
+- `services/oncall/.env` - On-call scheduling
+
+### **Frontend Configuration**
+- `frontend/client/.env` - React app settings
+- API endpoints
+- Feature flags
+- Analytics configuration
+
+## 🐛 **Troubleshooting**
+
+### **Common Issues**
+
+**1. Service Won't Start**
+```bash
+# Check logs
+docker compose logs service-name
+
+# Check health
+make status
+
+# Restart service
+docker compose restart service-name
+```
+
+**2. Nginx 502 Errors**
+```bash
+# Check if backend services are running
+make status
+
+# Check Nginx logs
+make nginx-logs
+
+# Test backend directly
+curl http://localhost:5000/health
+```
+
+**3. SSL Certificate Issues**
+```bash
+# Check certificate validity
+openssl x509 -in nginx/ssl/cert.pem -text -noout
+
+# Test SSL connection
+curl -I https://localhost
+```
+
+**4. Database Connection Issues**
+```bash
+# Test MongoDB connection
+docker compose exec auth-service node -e "
+const mongoose = require('mongoose');
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('Connected'))
+  .catch(err => console.error(err));
+"
+```
+
+### **Performance Issues**
+```bash
+# Check resource usage
+docker stats
+
+# Monitor Nginx performance
+docker compose exec nginx nginx -V
+
+# Check service response times
+curl -w "@curl-format.txt" -o /dev/null -s http://localhost/api/auth/test
+```
+
+## 📚 **API Documentation**
+
+### **Authentication**
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
+
+### **Incidents**
+- `GET /api/incidents` - List incidents
+- `POST /api/incidents` - Create incident
+- `PUT /api/incidents/:id` - Update incident
+- `DELETE /api/incidents/:id` - Delete incident
+
+### **Users**
+- `GET /api/users` - List users
+- `PUT /api/users/me` - Update profile
+- `POST /api/users/me/avatar` - Upload avatar
+
+### **OnCall**
+- `GET /api/oncall/schedules` - Get schedules
+- `POST /api/oncall/schedules` - Create schedule
+
+## 🤝 **Contributing**
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 **License**
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 **Support**
+
+- **Issues**: [GitHub Issues](https://github.com/shubnimkar/incidentflow/issues)
+- **Documentation**: [Wiki](https://github.com/shubnimkar/incidentflow/wiki)
+- **Security**: Report to [security@incidentflow.com](mailto:security@incidentflow.com)
+
+---
+
+**Built with ❤️ for modern incident management**
 

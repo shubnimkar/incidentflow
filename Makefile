@@ -1,6 +1,6 @@
 # IncidentFlow Docker Management Makefile
 
-.PHONY: help build up down logs clean restart status shell
+.PHONY: help build up down logs clean restart status shell nginx-start nginx-stop nginx-logs ssl-dev
 
 # Default target
 help:
@@ -15,6 +15,12 @@ help:
 	@echo "  restart      - Restart services"
 	@echo "  status       - Show service status"
 	@echo "  shell        - Open shell in container"
+	@echo ""
+	@echo "Nginx commands:"
+	@echo "  nginx-start  - Start with Nginx reverse proxy"
+	@echo "  nginx-stop   - Stop Nginx service"
+	@echo "  nginx-logs   - View Nginx logs"
+	@echo "  ssl-dev      - Generate dev SSL certificates"
 
 # Production commands
 build:
@@ -63,4 +69,27 @@ setup-env:
 start: setup-env build up
 	@echo "IncidentFlow started!"
 	@echo "Frontend: http://localhost:3000"
-	@echo "Default admin: admin@incidentflow.com / password" 
+	@echo "Default admin: admin@incidentflow.com / password"
+
+# Nginx commands
+nginx-start: setup-env build
+	docker compose up -d
+	@echo "IncidentFlow started with Nginx reverse proxy!"
+	@echo "Access via: http://localhost"
+	@echo "HTTPS: https://localhost (if SSL configured)"
+
+nginx-stop:
+	docker compose stop nginx
+
+nginx-logs:
+	docker compose logs -f nginx
+
+ssl-dev:
+	@echo "Generating development SSL certificates..."
+	@mkdir -p nginx/ssl
+	openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+		-keyout nginx/ssl/key.pem \
+		-out nginx/ssl/cert.pem \
+		-subj "/C=US/ST=Dev/L=Dev/O=IncidentFlow/CN=localhost"
+	@echo "SSL certificates generated in nginx/ssl/"
+	@echo "You can now use HTTPS on https://localhost" 

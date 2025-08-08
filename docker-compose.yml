@@ -103,25 +103,25 @@ services:
       timeout: 10s
       retries: 3
 
-  # Nginx Reverse Proxy (Optional) - Commented out due to missing config files
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: incidentflow-nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./nginx/ssl:/etc/nginx/ssl:ro
-  #   depends_on:
-  #     - frontend
-  #     - auth-service
-  #     - incident-service
-  #     - user-service
-  #     - oncall-service
-  #   networks:
-  #     - incidentflow-network
+  # Nginx Reverse Proxy - Routes all traffic through a single entry point
+  nginx:
+    image: nginx:alpine
+    container_name: incidentflow-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - auth-service
+      - incident-service
+      - user-service
+      - oncall-service
+    networks:
+      - incidentflow-network
 
 volumes:
   incident_uploads:
