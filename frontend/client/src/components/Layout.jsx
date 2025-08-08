@@ -16,7 +16,20 @@ const Layout = () => {
   }, [collapsed]);
 
   const handleLogoClick = () => {
-    navigate("/dashboard");
+    try {
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Navigation error:", error);
+      // Fallback to window.location if navigate fails
+      window.location.href = "/dashboard";
+    }
+  };
+
+  const handleLogoKeyPress = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleLogoClick();
+    }
   };
 
   return (
@@ -25,10 +38,14 @@ const Layout = () => {
       <header className="flex items-center px-8 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm z-40 transition-colors duration-300">
         <img 
           src="/logo.png" 
-          alt="Incident Flow Logo" 
-          className="h-12 cursor-pointer hover:opacity-80 transition-opacity duration-200" 
+          alt="Incident Flow Logo - Click to go to Dashboard" 
+          className="h-12 cursor-pointer hover:opacity-80 transition-opacity duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800" 
           style={{maxHeight: '48px', width: 'auto'}}
           onClick={handleLogoClick}
+          onKeyPress={handleLogoKeyPress}
+          tabIndex={0}
+          role="button"
+          aria-label="Go to Dashboard"
           title="Click to go to Dashboard"
         />
       </header>
