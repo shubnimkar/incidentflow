@@ -1,0 +1,30 @@
+# CodeRabbit CODEOWNERS for IncidentFlow
+# This file defines code ownership for better AI reviews
+
+# Frontend React components
+frontend/client/src/components/ @shubnimkar
+frontend/client/src/pages/ @shubnimkar
+frontend/client/src/context/ @shubnimkar
+frontend/client/src/services/ @shubnimkar
+frontend/client/src/utils/ @shubnimkar
+
+# Backend microservices
+services/auth/ @shubnimkar
+services/incident/ @shubnimkar
+services/user/ @shubnimkar
+services/oncall/ @shubnimkar
+
+# Docker and infrastructure
+Dockerfile* @shubnimkar
+docker-compose.yml @shubnimkar
+Makefile @shubnimkar
+nginx/ @shubnimkar
+
+# Configuration files
+*.env.example @shubnimkar
+.coderabbit.yaml @shubnimkar
+README.md @shubnimkar
+
+# Documentation
+docs/ @shubnimkar
+*.md @shubnimkar 

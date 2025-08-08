@@ -1,0 +1,126 @@
+# CodeRabbit Configuration for IncidentFlow
+# This file configures AI-powered code reviews
+
+# Project context for better AI understanding
+project_context: |
+  IncidentFlow is a production-ready incident management platform built with:
+  - React 19 frontend with Tailwind CSS and dark mode
+  - Node.js microservices (Auth, Incident, User, OnCall)
+  - MongoDB Atlas database
+  - Docker containerization with Nginx reverse proxy
+  - Real-time Socket.IO communication
+  - AWS S3 for file uploads
+  - Email/SMS notifications
+
+# Review settings
+review:
+  # Enable comprehensive reviews
+  comprehensive: true
+  
+  # Focus areas for this project
+  focus_areas:
+    - "Security best practices"
+    - "Docker and containerization"
+    - "Microservices architecture"
+    - "React component patterns"
+    - "API design and REST conventions"
+    - "Error handling and logging"
+    - "Performance optimization"
+    - "Accessibility (a11y)"
+    - "Dark mode implementation"
+    - "Real-time functionality"
+
+# Custom rules for this project
+rules:
+  - "Check for proper error handling in async operations"
+  - "Ensure Docker images are optimized and secure"
+  - "Verify API endpoints follow REST conventions"
+  - "Check for proper TypeScript/PropTypes usage"
+  - "Ensure dark mode compatibility"
+  - "Verify proper environment variable usage"
+  - "Check for security vulnerabilities"
+  - "Ensure proper logging and monitoring"
+
+# File patterns to include/exclude
+include:
+  - "frontend/client/src/**/*.{js,jsx}"
+  - "services/**/*.js"
+  - "Dockerfile*"
+  - "docker-compose.yml"
+  - "nginx/**/*"
+  - "Makefile"
+  - "README.md"
+
+exclude:
+  - "node_modules/**"
+  - "build/**"
+  - "dist/**"
+  - "*.log"
+  - "package-lock.json"
+  - ".git/**"
+
+# Language-specific settings
+languages:
+  javascript:
+    framework: "react"
+    patterns:
+      - "hooks"
+      - "components"
+      - "context"
+      - "services"
+  
+  dockerfile:
+    focus:
+      - "security"
+      - "optimization"
+      - "best_practices"
+
+# Custom prompts for specific file types
+prompts:
+  dockerfile: |
+    Review this Dockerfile for:
+    - Security best practices
+    - Image optimization
+    - Multi-stage builds
+    - Proper user permissions
+    - Health checks
+
+  react_component: |
+    Review this React component for:
+    - Proper hooks usage
+    - Component reusability
+    - Dark mode compatibility
+    - Accessibility
+    - Performance optimization
+
+  api_endpoint: |
+    Review this API endpoint for:
+    - REST conventions
+    - Error handling
+    - Input validation
+    - Security considerations
+    - Proper HTTP status codes
+
+# Auto-fix settings
+auto_fix:
+  enabled: true
+  confidence_threshold: 0.8
+  max_changes_per_file: 10
+
+# Comment templates
+comments:
+  security: |
+    🔒 **Security Concern**: {description}
+    Consider: {suggestion}
+
+  performance: |
+    ⚡ **Performance**: {description}
+    Suggestion: {improvement}
+
+  best_practice: |
+    📚 **Best Practice**: {description}
+    Recommended: {practice}
+
+  accessibility: |
+    ♿ **Accessibility**: {description}
+    Fix: {solution} 
